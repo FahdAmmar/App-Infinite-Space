@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="InfiniteSpace — organize your thinking visually on an unlimited canvas." />
+    <meta name="color-scheme" content="dark light" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>InfiniteSpace</title>
+    <script>
+      /* تطبيق السمة المحفوظة قبل أول رسم للصفحة لمنع وميض السمة الخاطئة.
+         يقرأ نفس مفتاح localStorage الذي يستخدمه ui-store. */
+      try {
+        var raw = localStorage.getItem('infinitespace:v1:ui');
+        var theme = raw && JSON.parse(raw).state.theme;
+        if (theme === 'light' || theme === 'dark') {
+          document.documentElement.setAttribute('data-theme', theme);
+        }
+      } catch (_) {
+        /* التخزين غير متاح أو البيانات تالفة: نبقى على السمة الافتراضية (داكنة) */
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

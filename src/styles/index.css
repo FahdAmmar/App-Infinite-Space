@@ -1,0 +1,379 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/syne/wght.css';
+@import '@fontsource/ibm-plex-sans/latin-400.css';
+@import '@fontsource/ibm-plex-sans/latin-500.css';
+@import '@fontsource/ibm-plex-sans/latin-600.css';
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+
+/*
+ * ───────────── Design tokens ─────────────
+ * القيم مأخوذة من عينات لونية فعلية لصور المرجع الست (لا من التخمين):
+ *  - الداكن: لوحة شبه سوداء بحدود رفيعة (مرجع 1: #000، مراجع 3-4: #181818 / #1C1C1C)،
+ *    والزر الرئيسي أبيض (#FCFCFC) بنص أسود، ولمسة بنفسجية (مراجع 2-4) للتحديد والروابط.
+ *  - الفاتح: رمادي محايد #F2F2F2 ولوحات بيضاء (مرجع 5 - Miro)، والزر الرئيسي أسود.
+ * كل الألوان متغيرات CSS تتبدل مع data-theme، فلا نحتاج صنف dark: في أي مكوّن.
+ */
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --c-bg: #0a0a0b;
+  --c-surface: #111113;
+  --c-raised: #17171a;
+  --c-line: #28282d;
+  --c-text: #f4f4f5;
+  --c-muted: #8f8f99;
+  --c-accent: #a78bfa;
+  --c-accent-ink: #120d2b;
+  --c-primary: #fcfcfc;
+  --c-primary-ink: #0a0a0b;
+  --c-danger: #ff7a8a;
+  --c-danger-ink: #2b0710;
+  --c-success: #6fd3a0;
+  --c-dot: rgb(255 255 255 / 0.08);
+  --c-dot-lit: rgb(167 139 250 / 0.6);
+  --sh-card: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 12px 28px -16px rgb(0 0 0 / 0.9);
+  --sh-card-hover: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 22px 40px -18px rgb(0 0 0 / 1);
+  --sh-pop: 0 18px 50px -12px rgb(0 0 0 / 0.85);
+
+  /* تدرج الروابط (يُستخدم في المرحلة 3): بنفسجي ← وردي كما في مرجع 1 */
+  --edge-from: #8458f0;
+  --edge-to: #f472b6;
+  --edge-violet: #a78bfa;
+  --edge-pink: #f472b6;
+  --edge-blue: #60a5fa;
+  --edge-green: #4ade80;
+  --edge-amber: #fbbf24;
+  --edge-neutral: #8f8f99;
+
+  /* الأوراق اللاصقة: بطاقات داكنة ملوّنة (مراجع 2 و3 و4) بحد فاتح ونص أبيض */
+  --sticky-radius: 12px;
+  --sticky-shadow: 0 10px 26px -12px rgb(0 0 0 / 0.8);
+  --sticky-yellow-bg: #4c4438;
+  --sticky-yellow-border: #d9b985;
+  --sticky-yellow-ink: #fbf6ea;
+  --sticky-blue-bg: #343c50;
+  --sticky-blue-border: #8fa4d9;
+  --sticky-blue-ink: #f1f4ff;
+  --sticky-green-bg: #2f4a40;
+  --sticky-green-border: #7fc8a0;
+  --sticky-green-ink: #effaf3;
+  --sticky-pink-bg: #503848;
+  --sticky-pink-border: #e59ab8;
+  --sticky-pink-ink: #fff0f6;
+  --sticky-purple-bg: #5f4287;
+  --sticky-purple-border: #c3a0ee;
+  --sticky-purple-ink: #ffffff;
+  --sticky-neutral-bg: #26262a;
+  --sticky-neutral-border: #4d4d56;
+  --sticky-neutral-ink: #f4f4f5;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --c-bg: #f2f2f2;
+  --c-surface: #ffffff;
+  --c-raised: #ffffff;
+  --c-line: #e1e1e5;
+  --c-text: #111113;
+  --c-muted: #5f5f69;
+  --c-accent: #6a43f0;
+  --c-accent-ink: #ffffff;
+  --c-primary: #111113;
+  --c-primary-ink: #ffffff;
+  --c-danger: #c2273d;
+  --c-danger-ink: #ffffff;
+  --c-success: #1f7a4c;
+  --c-dot: rgb(17 17 19 / 0.1);
+  --c-dot-lit: rgb(106 67 240 / 0.5);
+  --sh-card: 0 1px 2px rgb(17 17 19 / 0.06), 0 12px 26px -16px rgb(17 17 19 / 0.28);
+  --sh-card-hover: 0 1px 2px rgb(17 17 19 / 0.08), 0 22px 36px -18px rgb(17 17 19 / 0.38);
+  --sh-pop: 0 18px 44px -14px rgb(17 17 19 / 0.35);
+
+  --edge-from: #6a43f0;
+  --edge-to: #e0529c;
+  --edge-violet: #6a43f0;
+  --edge-pink: #e0529c;
+  --edge-blue: #2563eb;
+  --edge-green: #16a34a;
+  --edge-amber: #d97706;
+  --edge-neutral: #5f5f69;
+
+  /* الأوراق اللاصقة بأسلوب ميرو: ألوان ساطعة، زوايا شبه حادة، وظل ورقي واضح (مرجع 5) */
+  --sticky-radius: 3px;
+  --sticky-shadow: 0 1px 1px rgb(0 0 0 / 0.1), 0 14px 20px -8px rgb(0 0 0 / 0.32);
+  --sticky-yellow-bg: #fcf8b0;
+  --sticky-yellow-border: #ece58f;
+  --sticky-yellow-ink: #1e1e1e;
+  --sticky-blue-bg: #c6e0f7;
+  --sticky-blue-border: #a9cbea;
+  --sticky-blue-ink: #1e1e1e;
+  --sticky-green-bg: #d3efb6;
+  --sticky-green-border: #b5db93;
+  --sticky-green-ink: #1e1e1e;
+  --sticky-pink-bg: #f3b8d2;
+  --sticky-pink-border: #e49bbd;
+  --sticky-pink-ink: #1e1e1e;
+  --sticky-purple-bg: #c4a3d0;
+  --sticky-purple-border: #ab85ba;
+  --sticky-purple-ink: #1e1e1e;
+  --sticky-neutral-bg: #ececef;
+  --sticky-neutral-border: #d5d5db;
+  --sticky-neutral-ink: #1e1e1e;
+}
+
+/* ربط المتغيرات بأدوات Tailwind: bg-surface, text-ink, border-line ... */
+@theme inline {
+  --color-bg: var(--c-bg);
+  --color-surface: var(--c-surface);
+  --color-raised: var(--c-raised);
+  --color-line: var(--c-line);
+  --color-ink: var(--c-text);
+  --color-muted: var(--c-muted);
+  --color-accent: var(--c-accent);
+  --color-accent-ink: var(--c-accent-ink);
+  --color-primary: var(--c-primary);
+  --color-primary-ink: var(--c-primary-ink);
+  --color-danger: var(--c-danger);
+  --color-danger-ink: var(--c-danger-ink);
+  --color-success: var(--c-success);
+
+  --shadow-card: var(--sh-card);
+  --shadow-card-hover: var(--sh-card-hover);
+  --shadow-pop: var(--sh-pop);
+
+  --font-display: 'Syne Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@theme {
+  --animate-dialog-in: dialog-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-pop-in: pop-in 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-toast-in: toast-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.98);
+    }
+  }
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.97);
+    }
+  }
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+}
+
+@layer base {
+  html {
+    background-color: var(--c-bg);
+    color: var(--c-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    min-height: 100dvh;
+  }
+
+  button:not(:disabled),
+  select,
+  summary {
+    cursor: pointer;
+  }
+
+  /* مؤشر تركيز واضح يظهر للوحة المفاتيح فقط */
+  :focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--c-accent) 35%, transparent);
+  }
+
+  /* احترام تفضيل تقليل الحركة: نُلغي الانتقالات والحركات CSS (GSAP يُعطَّل من JS) */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* شبكة النقاط: هوية "اللوحة اللانهائية" في كل الشاشات */
+  .dot-grid {
+    background-image: radial-gradient(circle at center, var(--c-dot) 1px, transparent 1.4px);
+    background-size: 20px 20px;
+  }
+
+  /* طبقة نقاط مضيئة تظهر فقط حول المؤشر (قناع دائري يتبع الفأرة) */
+  .dot-grid-lit {
+    background-image: radial-gradient(circle at center, var(--c-dot-lit) 1.3px, transparent 1.7px);
+    background-size: 20px 20px;
+    -webkit-mask-image: radial-gradient(240px circle at var(--mx, 50%) var(--my, 30%), #000 0%, transparent 100%);
+    mask-image: radial-gradient(240px circle at var(--mx, 50%) var(--my, 30%), #000 0%, transparent 100%);
+  }
+
+  /* لون المساحة يُمرَّر كمتغير --ws؛ نمزجه مع لون النص ليبقى التباين كافياً في الوضعين */
+  .ws-chip {
+    background: color-mix(in oklab, var(--ws) 20%, transparent);
+    color: color-mix(in oklab, var(--ws) 62%, var(--c-text));
+  }
+
+  .ws-preview {
+    background:
+      radial-gradient(110% 80% at 12% 0%, color-mix(in oklab, var(--ws) 16%, transparent), transparent 65%),
+      var(--c-bg);
+    border: 1px solid var(--c-line);
+  }
+
+  .ws-ink {
+    color: color-mix(in oklab, var(--ws) 62%, var(--c-text));
+  }
+}
+
+/* ───────────── المرحلة 5: تأثيرات Magic UI (مقتبسة، MIT) وتحسينات اللمس ───────────── */
+@layer components {
+  /*
+   * Magic Card: بقعة ضوء بلون المساحة تتبع المؤشر داخل البطاقة، وحد مضيء يتبعها.
+   * الطبقتان خلف المحتوى (z-index: -1 داخل isolation) فلا تغطيان النص. تظهران عند المرور فقط،
+   * وتبقيان مخفيتين عند غياب متغيري الموضع (لمس / تقليل حركة) فلا أثر لهما.
+   */
+  .magic-card {
+    isolation: isolate;
+  }
+  .magic-card::before,
+  .magic-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .magic-card::before {
+    background: radial-gradient(
+      240px circle at var(--spot-x, -999px) var(--spot-y, -999px),
+      color-mix(in oklab, var(--ws, var(--c-accent)) 15%, transparent),
+      transparent 70%
+    );
+  }
+  .magic-card::after {
+    padding: 1px;
+    background: radial-gradient(
+      180px circle at var(--spot-x, -999px) var(--spot-y, -999px),
+      color-mix(in oklab, var(--ws, var(--c-accent)) 75%, transparent),
+      transparent 70%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+  }
+  .magic-card:hover::before,
+  .magic-card:hover::after {
+    opacity: 1;
+  }
+
+  /*
+   * Border Beam: شعاع يدور على حدود البطاقة. الحدود الشفافة (1px) مع القناع تُظهر الشعاع على الحد فقط.
+   * يتطلب offset-path: rect()؛ في غير المدعوم يُخفى (ميزة زخرفية لا أكثر).
+   */
+  .border-beam-frame {
+    border: 1px solid transparent;
+    -webkit-mask-clip: padding-box, border-box;
+    mask-clip: padding-box, border-box;
+    -webkit-mask-composite: xor;
+    mask-composite: intersect;
+    -webkit-mask-image: linear-gradient(transparent, transparent), linear-gradient(#000, #000);
+    mask-image: linear-gradient(transparent, transparent), linear-gradient(#000, #000);
+  }
+  .border-beam {
+    position: absolute;
+    aspect-ratio: 1;
+    width: var(--beam-size, 90px);
+    background: linear-gradient(to left, var(--beam-from), var(--beam-to), transparent);
+    offset-anchor: 90% 50%;
+    offset-path: rect(0 auto auto 0 round 28px);
+    animation: border-beam var(--beam-duration, 7s) linear infinite;
+    animation-delay: var(--beam-delay, 0s);
+  }
+  @keyframes border-beam {
+    to {
+      offset-distance: 100%;
+    }
+  }
+  @supports not (offset-path: rect(0 auto auto 0)) {
+    .border-beam-frame {
+      display: none;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .border-beam-frame {
+      display: none;
+    }
+  }
+
+  /* منطقة لمس موسّعة للأزرار الصغيرة المضغوطة (لا تغيّر مظهرها) على أجهزة اللمس */
+  @media (pointer: coarse) {
+    [data-compact] {
+      position: relative;
+    }
+    [data-compact]::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+  }
+}
+
+/* أهداف لمس لا تقل عن 44px للأزرار العادية على أجهزة اللمس (مواصفات 12: عناصر تحكم مناسبة للمس) */
+@media (pointer: coarse) {
+  button:not([data-compact]),
+  [role='menuitem'],
+  select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* رابط «تخطَّ إلى اللوحة»: خارج الشاشة حتى يأخذ التركيز بلوحة المفاتيح، ثم يظهر فوق كل شيء */
+.skip-link {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 50;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--c-primary);
+  color: var(--c-primary-ink);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transform: translateY(-250%);
+}
+.skip-link:focus {
+  transform: none;
+}

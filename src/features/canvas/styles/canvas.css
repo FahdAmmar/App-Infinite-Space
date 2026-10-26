@@ -1,0 +1,305 @@
+/*
+ * ربط ألوان React Flow بنظام التصميم (متغيرات index.css) بدل ألوانه الافتراضية.
+ * المحدِّد الأطول (.canvas-root .react-flow.dark) يغلب قواعد المكتبة .react-flow.dark دون !important.
+ */
+.canvas-root .react-flow,
+.canvas-root .react-flow.dark,
+.canvas-root .react-flow.light {
+  --xy-background-color: var(--c-bg);
+  --xy-background-pattern-color: color-mix(in oklab, var(--c-text) 15%, transparent);
+  --xy-selection-background-color: color-mix(in oklab, var(--c-accent) 10%, transparent);
+  --xy-selection-border: 1px solid var(--c-accent);
+  --xy-resize-background-color: var(--c-accent);
+  --xy-minimap-background-color: var(--c-surface);
+  --xy-minimap-mask-background-color: color-mix(in oklab, var(--c-bg) 70%, transparent);
+  --xy-minimap-mask-stroke-color: var(--c-accent);
+  --xy-minimap-mask-stroke-width: 1.5;
+  --xy-attribution-background-color: transparent;
+}
+
+.canvas-root .react-flow__attribution {
+  font-size: 10px;
+}
+.canvas-root .react-flow__attribution a {
+  color: var(--c-muted);
+}
+
+.canvas-root .react-flow__minimap {
+  border: 1px solid var(--c-line);
+  border-radius: 16px;
+  box-shadow: var(--sh-pop);
+  overflow: hidden;
+}
+
+/* مقابض تغيير الحجم: مربعات صغيرة بحد بلون اللوحة (تظهر "مقطوعة" من الخلفية كما في المراجع) */
+.canvas-root .react-flow__resize-control.handle {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--c-bg);
+  border-radius: 3px;
+}
+.canvas-root .react-flow__resize-control.line {
+  border-color: var(--c-accent);
+}
+
+/* مؤشر لوحة المفاتيح على العقدة (التنقل بـ Tab) */
+.canvas-root .react-flow__node:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 4px;
+  border-radius: 14px;
+}
+
+/* المؤشر حسب الأداة */
+.canvas-root[data-tool='hand'] .react-flow__pane {
+  cursor: grab;
+}
+.canvas-root[data-tool='hand'] .react-flow__pane.dragging {
+  cursor: grabbing;
+}
+.canvas-root[data-tool='sticky'] .react-flow__pane,
+.canvas-root[data-tool='text'] .react-flow__pane {
+  cursor: crosshair;
+}
+
+/*
+ * الورقة اللاصقة: الألوان والزوايا والظل تأتي من متغيرات السمة.
+ * الداكن = بطاقة ملوّنة بزوايا ناعمة؛ الفاتح = ورقة ساطعة بزوايا حادة وظل ورقي (مرجع Miro).
+ */
+.sticky-note {
+  background: var(--note-bg);
+  color: var(--note-ink);
+  border: 1px solid var(--note-border);
+  border-radius: var(--sticky-radius);
+  box-shadow: var(--sticky-shadow);
+}
+.sticky-note-selected {
+  border-color: var(--c-accent);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--c-accent) 35%, transparent),
+    var(--sticky-shadow);
+}
+
+/* بطاقة النص (الاسم card-node لا text-card: tailwind-merge يحذف أي صنف يبدأ بـ text- أمام text-ink) */
+/* سطح داكن بحد رفيع، وعند التحديد حد بنفسجي مع هالة خفيفة (مراجع 1 و3) */
+.card-node {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: 16px;
+  box-shadow: var(--sh-card);
+}
+.card-node-selected {
+  border-color: var(--c-accent);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--c-accent) 35%, transparent),
+    var(--sh-card);
+}
+
+/* ───────────── المرحلة 3: الوصلات والمقابض والمجموعات والوسوم ───────────── */
+
+/*
+ * مقابض الوصل: حلقات صغيرة على جوانب البطاقة (مرجع 1). تظهر عند المرور أو التحديد أو أثناء الوصل،
+ * ومنطقة لمس أوسع من الحلقة المرئية (::after) كي يسهل التقاطها بالإصبع.
+ * نستخدم الخاصية scale بدل transform لأن React Flow يضع transform: translate على المقبض لموضعته.
+ */
+.canvas-root .connect-handle {
+  width: 12px;
+  height: 12px;
+  background: var(--c-bg);
+  border: 2px solid var(--c-accent);
+  border-radius: 999px;
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    scale 0.15s ease,
+    background-color 0.15s ease;
+}
+.canvas-root .connect-handle::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: 999px;
+}
+.canvas-root .react-flow__node:hover .connect-handle,
+.canvas-root .react-flow__node.selected .connect-handle,
+.canvas-root[data-connecting='true'] .connect-handle,
+.canvas-root[data-tool='connect'] .connect-handle {
+  opacity: 1;
+}
+.canvas-root .connect-handle:hover,
+.canvas-root .connect-handle.connectingfrom,
+.canvas-root .connect-handle.valid {
+  scale: 1.3;
+  background: var(--c-accent);
+}
+.canvas-root[data-tool='hand'] .connect-handle {
+  display: none;
+}
+
+/* مصدر الوصل المعلّق (أداة الوصل بالنقر): إطار منقّط حول البطاقة الأولى */
+.canvas-root .connect-source > .card-node,
+.canvas-root .connect-source > .sticky-note {
+  outline: 2px dashed var(--c-accent);
+  outline-offset: 5px;
+}
+
+.canvas-root[data-tool='link'] .react-flow__pane,
+.canvas-root[data-tool='group'] .react-flow__pane,
+.canvas-root[data-tool='connect'] .react-flow__pane {
+  cursor: crosshair;
+}
+.canvas-root[data-tool='connect'] .react-flow__node {
+  cursor: pointer;
+}
+
+/* الوصلات: توهج خفيف عند المرور والتحديد بلون الطرف الثاني للتدرج */
+.canvas-root .react-flow__edge-path {
+  transition: filter 0.15s ease;
+}
+.canvas-root .react-flow__edge:hover .react-flow__edge-path,
+.canvas-root .react-flow__edge.selected .react-flow__edge-path {
+  filter: drop-shadow(0 0 5px color-mix(in oklab, var(--edge-to) 55%, transparent));
+}
+.canvas-root .edge-midpoint {
+  fill: var(--c-bg);
+  stroke: var(--c-accent);
+  stroke-width: 2.5;
+  pointer-events: none;
+}
+.canvas-root .edge-label {
+  position: absolute;
+  max-width: 220px;
+  overflow: hidden;
+  padding: 2px 11px;
+  border: 1px solid var(--c-line);
+  border-radius: 999px;
+  background: var(--c-raised);
+  box-shadow: var(--sh-card);
+  color: var(--c-text);
+  font-size: 12px;
+  line-height: 1.6;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* حاوية التسميات في React Flow لا تستقبل المؤشر؛ التسمية نفسها تستقبله لتحديد الوصلة بالنقر */
+  pointer-events: all;
+  cursor: pointer;
+}
+.canvas-root .edge-label-selected {
+  border-color: var(--c-accent);
+}
+
+/* المجموعة: منطقة شفافة بحد منقّط بلون المجموعة (تظهر خلف العناصر، والوصلات فوقها) */
+.canvas-group {
+  background: color-mix(in oklab, var(--group-tint) 9%, transparent);
+  border: 1.5px dashed color-mix(in oklab, var(--group-tint) 60%, transparent);
+  border-radius: 22px;
+  color: color-mix(in oklab, var(--group-tint) 55%, var(--c-text));
+}
+.canvas-group-selected {
+  border-style: solid;
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--c-accent) 30%, transparent);
+}
+.canvas-root .group-drag-handle {
+  cursor: grab;
+}
+.canvas-root .group-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* وسوم البطاقات: خلفية من لون النص نفسه فتناسب كل البطاقات في السمتين */
+.tag-chip {
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: color-mix(in oklab, currentColor 14%, transparent);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+/* طبقة الإفلات عند سحب ملفات فوق اللوحة */
+.canvas-root .drop-overlay {
+  position: absolute;
+  inset: 12px;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--c-accent);
+  border-radius: 28px;
+  background: color-mix(in oklab, var(--c-accent) 9%, transparent);
+  color: var(--c-text);
+  font-size: 1.05rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-root .connect-handle,
+  .canvas-root .react-flow__edge-path {
+    transition: none;
+  }
+}
+
+/*
+ * React Flow يعرّف نمطاً مدمجاً للنوع "group" (حشوة وحد وخلفية رمادية وعرض 150px ونص في الوسط).
+ * نوعنا يحمل الاسم نفسه فيرث الصنف react-flow__node-group هذه الأنماط؛ نُلغيها كلها لأن
+ * المظهر كله من .canvas-group (والمحدِّدات أطول من محدِّدات المكتبة كي تغلبها دون !important).
+ */
+.canvas-root .react-flow__node-group,
+.canvas-root .react-flow__node-group.selectable:hover,
+.canvas-root .react-flow__node-group.selectable.selected,
+.canvas-root .react-flow__node-group.selectable:focus,
+.canvas-root .react-flow__node-group.selectable:focus-visible {
+  padding: 0;
+  border: 0;
+  border-radius: 22px;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font-size: inherit;
+  text-align: left;
+}
+.canvas-root .react-flow__node-group {
+  width: auto;
+}
+
+/* تحديد متعدد: لا مقابض حجم، ومقابض الوصل عند المرور فقط */
+.canvas-root[data-multi-select='true'] .react-flow__resize-control {
+  display: none;
+}
+.canvas-root[data-multi-select='true'] .react-flow__node.selected:not(:hover) .connect-handle {
+  opacity: 0;
+}
+
+/* ───────────── المرحلة 5: لمس وتركيز لوحة المفاتيح ───────────── */
+
+/*
+ * React Flow يلغي مخطط التركيز للعقد (outline: none) ويعتمد على فئة selected؛ فمن ينتقل بـ Tab
+ * لا يرى أين وصل قبل أن يحدد. نعيد مؤشراً واضحاً للعقد والوصلات عند التركيز بلوحة المفاتيح فقط.
+ */
+.canvas-root .react-flow__node:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 5px;
+  border-radius: 22px;
+}
+.canvas-root .react-flow__edge:focus-visible .react-flow__edge-path {
+  stroke-width: 4px !important;
+  filter: drop-shadow(0 0 6px var(--c-accent));
+}
+.canvas-root .react-flow__edge:focus-visible {
+  outline: none;
+}
+
+/* أجهزة اللمس: مقابض أكبر وأسهل التقاطاً بالإصبع */
+@media (pointer: coarse) {
+  .canvas-root .connect-handle {
+    width: 20px;
+    height: 20px;
+  }
+  .canvas-root .connect-handle::after {
+    inset: -14px;
+  }
+  .canvas-root .react-flow__resize-control.handle {
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+  }
+}

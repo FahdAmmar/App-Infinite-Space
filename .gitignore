@@ -1,0 +1,19 @@
+# Dependencies and build output
+node_modules
+dist
+*.tsbuildinfo
+coverage
+
+# Secrets and local environment (never commit)
+.env
+.env.*
+!.env.example
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.log
+*.zip
