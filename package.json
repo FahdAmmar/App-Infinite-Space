@@ -14,7 +14,9 @@
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "docs:check": "node scripts/check-markdown.mjs",
+    "deploy:check": "node scripts/check-deploy.mjs"
   },
   "dependencies": {
     "@fontsource-variable/syne": "^5.3.0",

@@ -3,6 +3,7 @@ import { CircleCheck, Info, TriangleAlert, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { useUiStore, type Toast, type ToastKind } from '@/stores/ui-store'
 import { IconButton } from './Button'
+import { TOAST_DURATION_MS } from './toast-durations'
 
 const ICONS: Record<ToastKind, typeof Info> = {
   success: CircleCheck,
@@ -20,10 +21,10 @@ function ToastItem({ toast }: { toast: Toast }) {
   const dismiss = useUiStore((state) => state.dismissToast)
   const Icon = ICONS[toast.kind]
 
-  // رسائل النجاح والمعلومات تختفي وحدها؛ الأخطاء تبقى حتى يغلقها المستخدم لأنها تتطلب انتباهاً
+  // كل الرسائل تختفي وحدها (زر الإغلاق يبقى متاحاً). الأخطاء أطول مهلة لأنها تحتاج قراءة، لكنها رفض مؤقت
+  // (وصل غير مسموح، حد الحجم) لا فشل حفظ؛ لو بقيت حتى الإغلاق لغطّت شريط أدوات التحديد (لوحظ في فحص المتصفح)
   useEffect(() => {
-    if (toast.kind === 'error') return
-    const timer = window.setTimeout(() => dismiss(toast.id), 5000)
+    const timer = window.setTimeout(() => dismiss(toast.id), TOAST_DURATION_MS[toast.kind])
     return () => window.clearTimeout(timer)
   }, [toast.id, toast.kind, dismiss])
 

@@ -59,6 +59,26 @@ export interface KeyValueStore {
   getItem(key: string): string | null
   setItem(key: string, value: string): void
   removeItem(key: string): void
+  /**
+   * تعداد المفاتيح (اختياري): واجهة Storage في المتصفح توفرهما، وبدونهما لا يمكن عرض النسخ الاحتياطية
+   * المحفوظة في localStorage، لكن بقية التطبيق يعمل.
+   */
+  readonly length?: number
+  key?(index: number): string | null
+}
+
+/** نوع النسخة الاحتياطية: قائمة المساحات، أو محتوى لوحة مساحة واحدة. */
+export type BackupKind = 'workspaces' | 'canvas'
+
+export interface BackupInfo {
+  key: string
+  kind: BackupKind
+  /** معرّف المساحة لنسخ اللوحات؛ null لنسخة القائمة */
+  workspaceId: string | null
+  /** null إن لم يُسجَّل وقت النسخ (نسخ اللوحات تُكتب بمفتاح ثابت دون تاريخ) */
+  createdAt: number | null
+  /** حجم تقريبي بالبايت */
+  sizeBytes: number
 }
 
 export interface StorageAdapter {
@@ -72,4 +92,9 @@ export interface StorageAdapter {
   deleteCanvas(workspaceId: string): Promise<void>
   /** يُنبَّه عندما يغيّر تبويب آخر البيانات. يعيد دالة لإلغاء الاشتراك. */
   subscribeToExternalChanges(onChange: () => void): () => void
+  /** النسخ الاحتياطية التي حُفظت عند اكتشاف بيانات غير مقروءة (لا تُحذف تلقائياً أبداً). */
+  listBackups(): Promise<BackupInfo[]>
+  /** المحتوى الخام للنسخة (نص أو كائن مخزَّن)، أو null إن لم تعد موجودة. */
+  readBackup(key: string): Promise<unknown>
+  deleteBackup(key: string): Promise<void>
 }

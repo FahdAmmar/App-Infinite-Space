@@ -17,7 +17,7 @@
 """
 import base64, io, json, math, os, random, statistics, sys, tempfile, time
 from PIL import Image
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 URL = os.environ.get('BASE_URL', 'http://127.0.0.1:4173/')
 LIMIT = 5_000  # CANVAS_LIMITS.maxNodes
@@ -145,7 +145,9 @@ with sync_playwright() as p:
         # تعديل + حفظ تلقائي
         pg.evaluate('document.querySelector(".react-flow__pane") && 0')
         at_limit = total >= LIMIT
-        pg.get_by_role('button', name='Sticky note', exact=True).click(); pg.mouse.click(700, 450); pg.wait_for_timeout(250)
+        # البطاقة الجديدة تُنشأ باختصار n عند المؤشر (كما في بقية الفلوات). النقر على الأداة ثم على (700, 450) كان يقع فوق بطاقة قائمة
+        # عند 1500 عنصر فأكثر (الشاشة مكتظة بعد عرض الكل) فتُنشأ بطاقة فارغة ولا تدخل وضع الكتابة، ثم تتحول الأحرف إلى اختصارات
+        pg.mouse.move(700, 450); pg.keyboard.press('n'); pg.wait_for_timeout(250)
         if at_limit:
             # عند الحد: الإضافة تُرفض برسالة ولا يتغير شيء
             msg = ' | '.join(t.inner_text() for t in pg.locator('[aria-live="polite"]').all())
@@ -153,11 +155,16 @@ with sync_playwright() as p:
             t_save = 0.0
             pg.keyboard.press('Escape')
         else:
-            pg.wait_for_timeout(200); pg.keyboard.type('Edited under load'); pg.keyboard.press('Escape')
+            check(f'{n}: a new sticky opens in edit mode with the focus inside its field',
+                  pg.evaluate("() => { const a = document.activeElement; return !!a && /^(TEXTAREA|INPUT)$/.test(a.tagName) && !!a.closest('.react-flow__node-sticky') }"))
+            pg.keyboard.type('Edited under load'); pg.keyboard.press('Escape')
             t0 = time.time()
             pg.wait_for_function("() => !/^Saved/.test(document.querySelector('header [role=status]').innerText.trim())", timeout=5000)
             pg.wait_for_function("() => /^Saved/.test(document.querySelector('header [role=status]').innerText.trim())", timeout=60000)
             t_save = time.time() - t0
+            # الفحص بعد قياس الحفظ كي لا يؤخر انتظار حالة غير محفوظ في الأحجام الصغيرة السريعة
+            check(f'{n}: the typed text lands in that sticky and no other card is created', pg.locator('.react-flow__node-sticky', has_text='Edited under load').count() == 1
+                  and pg.locator('.react-flow__node-text', has_text='ed under load').count() == 0)
         # تراجع
         if at_limit:
             # نحذف بطاقة ثم نقيس التراجع عن الحذف
@@ -165,9 +172,19 @@ with sync_playwright() as p:
             pg.wait_for_function("() => /^Saved/.test(document.querySelector('header [role=status]').innerText.trim())", timeout=60000)
         before = pg.locator('.react-flow__node').count()
         pg.mouse.click(30, 800)
-        t0 = time.perf_counter(); pg.keyboard.press('Control+z')
-        pg.wait_for_function('([n]) => document.querySelectorAll(".react-flow__node").length ' + ('> n' if at_limit else '< n'), arg=[before], timeout=30000) if before > 0 else None
+        # البطاقة التي تقع داخل مجموعة تُسجَّل في السجل خطوتين (إنشاء ثم كتابة)، وخارجها خطوة واحدة (CREATE_MERGE_MS)،
+        # لذلك لا نفترض عدداً ثابتاً من الخطوات: نتراجع حتى تزول البطاقة، وبحد أقصى خطوتين
+        cond = '> n' if at_limit else '< n'
+        undone = False
+        for step in range(1 if at_limit else 2):
+            t0 = time.perf_counter(); pg.keyboard.press('Control+z')
+            try:
+                pg.wait_for_function('([n]) => document.querySelectorAll(".react-flow__node").length ' + cond, arg=[before], timeout=30000 if (at_limit or step == 1) else 2500)
+                undone = True; break
+            except PlaywrightTimeoutError:
+                pass
         t_undo = time.perf_counter() - t0
+        check(f'{n}: undo ' + ('restores the deleted card' if at_limit else 'takes the new card away again (one or two steps)'), undone)
         heap1 = pg.evaluate('performance.memory ? performance.memory.usedJSHeapSize / 1048576 : 0')
 
         # عودة إلى لوحة التحكم: العدد الحقيقي
@@ -213,7 +230,11 @@ with sync_playwright() as p:
     except Exception: pass
     count = pg.locator('.react-flow__node-image').count()
     check('twelve large images (≈2.4 MB each) added at once all appear', count == 12, str(count))
-    all_load = pg.evaluate("[...document.querySelectorAll('.react-flow__node-image img')].filter(i => i.complete && i.naturalWidth > 0).length")
+    # عنصر <img> يظهر بعد ظهور البطاقة بلحظة (يُحمَّل من التخزين)، والضغط عند الإضافة يؤخر ظهور البطاقات؛ ننتظر فك الترميز بدل العد الفوري
+    decoded_js = "[...document.querySelectorAll('.react-flow__node-image img')].filter(i => i.complete && i.naturalWidth > 0).length"
+    try: pg.wait_for_function('() => ' + decoded_js + ' >= ' + str(min(count, 12)), timeout=8000)
+    except Exception: pass
+    all_load = pg.evaluate(decoded_js)
     check('and every visible image decodes', all_load >= min(count, 12) - 2, f'{all_load}/{count}')
     pg.wait_for_function("() => /^Saved/.test(document.querySelector('header [role=status]').innerText.trim())", timeout=30000)
     pg.reload(); pg.wait_for_selector('.react-flow__node-image'); pg.wait_for_timeout(1500)

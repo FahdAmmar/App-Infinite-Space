@@ -12,6 +12,19 @@ export interface CanvasStore {
   delete(workspaceId: string): Promise<void>
   /** نسخة احتياطية لمحتوى غير مقروء (لا يمحوها شيء تلقائياً) */
   putBackup(key: string, value: unknown): Promise<void>
+  /** مفاتيح النسخ الاحتياطية وأحجامها التقريبية (بايت) دون إعادة قيمها */
+  listBackups(): Promise<Array<{ key: string; sizeBytes: number }>>
+  getBackup(key: string): Promise<unknown>
+  deleteBackup(key: string): Promise<void>
+}
+
+/** حجم تقريبي لقيمة مخزَّنة (تُقاس بنصها JSON). فشل القياس (مثلاً Blob) لا يمنع عرض النسخة. */
+export function approximateSize(value: unknown): number {
+  try {
+    return new TextEncoder().encode(typeof value === 'string' ? value : JSON.stringify(value)).length
+  } catch {
+    return 0
+  }
 }
 
 /**
@@ -49,6 +62,38 @@ export class IndexedDbCanvasStore implements CanvasStore {
     transaction.objectStore(BACKUPS).put(value, key)
     await transactionDone(transaction)
   }
+
+  async listBackups(): Promise<Array<{ key: string; sizeBytes: number }>> {
+    const db = await this.database.open()
+    const store = db.transaction(BACKUPS, 'readonly').objectStore(BACKUPS)
+    const items: Array<{ key: string; sizeBytes: number }> = []
+    const request = store.openCursor()
+    await new Promise<void>((resolve, reject) => {
+      request.onsuccess = () => {
+        const cursor = request.result
+        if (!cursor) {
+          resolve()
+          return
+        }
+        if (typeof cursor.key === 'string') items.push({ key: cursor.key, sizeBytes: approximateSize(cursor.value) })
+        cursor.continue()
+      }
+      request.onerror = () => reject(request.error ?? new Error('IndexedDB cursor failed'))
+    })
+    return items
+  }
+
+  async getBackup(key: string): Promise<unknown> {
+    const db = await this.database.open()
+    return requestToPromise<unknown>(db.transaction(BACKUPS, 'readonly').objectStore(BACKUPS).get(key))
+  }
+
+  async deleteBackup(key: string): Promise<void> {
+    const db = await this.database.open()
+    const transaction = db.transaction(BACKUPS, 'readwrite')
+    transaction.objectStore(BACKUPS).delete(key)
+    await transactionDone(transaction)
+  }
 }
 
 /** تنفيذ بالذاكرة (للاختبارات) */
@@ -72,6 +117,19 @@ export class MemoryCanvasStore implements CanvasStore {
 
   putBackup(key: string, value: unknown): Promise<void> {
     this.backups.set(key, value)
+    return Promise.resolve()
+  }
+
+  listBackups(): Promise<Array<{ key: string; sizeBytes: number }>> {
+    return Promise.resolve([...this.backups].map(([key, value]) => ({ key, sizeBytes: approximateSize(value) })))
+  }
+
+  getBackup(key: string): Promise<unknown> {
+    return Promise.resolve(this.backups.get(key))
+  }
+
+  deleteBackup(key: string): Promise<void> {
+    this.backups.delete(key)
     return Promise.resolve()
   }
 }

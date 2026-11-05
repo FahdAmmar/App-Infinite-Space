@@ -215,6 +215,48 @@
   line-height: 1.6;
 }
 
+button.tag-chip {
+  color: inherit;
+  border: 0;
+  font: inherit;
+  font-size: 11.5px;
+}
+.tag-chip-active {
+  background: color-mix(in oklab, currentColor 30%, transparent);
+  box-shadow: 0 0 0 1.5px currentColor;
+}
+
+/* العرض التقديمي: لا تحرير ولا تحديد بالفأرة؛ الروابط داخل البطاقات تبقى قابلة للنقر لمن يعرضها */
+.canvas-root[data-presenting] .react-flow__node {
+  pointer-events: none;
+}
+.canvas-root[data-presenting] .react-flow__node a {
+  pointer-events: auto;
+}
+/* نقاط الوصل ومقابض تغيير الحجم أدوات تحرير: تُخفى كي تبقى الشريحة نظيفة */
+.canvas-root[data-presenting] .react-flow__handle,
+.canvas-root[data-presenting] .react-flow__resize-control {
+  display: none;
+}
+
+/* تصفية الوسم: البطاقات والوصلات غير المطابقة تخبو دون أن تختفي (تبقى قابلة للتحديد). المحددة تبقى واضحة. */
+.canvas-root .react-flow__node,
+.canvas-root .react-flow__edge {
+  transition: opacity 180ms ease;
+}
+.canvas-root .react-flow__node.is-dimmed:not(.selected) {
+  opacity: 0.2;
+}
+.canvas-root .react-flow__edge.is-dimmed {
+  opacity: 0.12;
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas-root .react-flow__node,
+  .canvas-root .react-flow__edge {
+    transition: none;
+  }
+}
+
 /* طبقة الإفلات عند سحب ملفات فوق اللوحة */
 .canvas-root .drop-overlay {
   position: absolute;
@@ -302,4 +344,10 @@
     height: 18px;
     border-radius: 6px;
   }
+}
+
+/* تكبير دلالي: عند التصغير الشديد يكبر شريط عنوان المجموعة بنسبة --label-scale (يضبطها CanvasEditor) كي يبقى الاسم مقروءاً */
+.canvas-root .group-drag-handle {
+  height: calc(2.5rem * var(--label-scale, 1));
+  font-size: calc(0.875rem * var(--label-scale, 1));
 }

@@ -21,6 +21,14 @@ class MemoryStore implements KeyValueStore {
   removeItem(key: string): void {
     this.data.delete(key)
   }
+
+  get length(): number {
+    return this.data.size
+  }
+
+  key(index: number): string | null {
+    return [...this.data.keys()][index] ?? null
+  }
 }
 
 function resolveStore(): { store: KeyValueStore; persistent: boolean } {

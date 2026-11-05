@@ -20,13 +20,14 @@ import type {
   TextCardData,
 } from '@/features/canvas/types/nodes'
 import { CANVAS_LIMITS, getResizeLimits } from '@/features/canvas/utils/constants'
-import { checkConnection, createEdge, edgeFromConnection, pickHandleSides } from '@/features/canvas/utils/edge-utils'
+import { checkConnection, createEdge, edgeFromConnection, isHandleSide, pickHandleSides } from '@/features/canvas/utils/edge-utils'
 import {
   reconcileAllMembership,
   reconcileMembership,
   releaseChildren,
   sortGroupsFirst,
 } from '@/features/canvas/utils/group-utils'
+import { reorderLayers as reorderNodeLayers, type LayerMove } from '@/features/canvas/utils/layers'
 import { duplicateNodes } from '@/features/canvas/utils/node-factory'
 import {
   CanvasHistory,
@@ -72,6 +73,18 @@ export interface CanvasState {
   minimapVisible: boolean
   panelCollapsed: boolean
   shortcutsOpen: boolean
+  /** لوحة الأوامر (Ctrl/⌘+K) */
+  paletteOpen: boolean
+  /** وسم يُظهر البطاقات الحاملة له ويخفّت الباقي؛ null = لا تصفية. حالة عرض فقط: لا تُحفظ ولا تدخل في التراجع. */
+  tagFilter: string | null
+  /** بطاقة يُركَّز على فرعها (ما قبلها وما بعدها على الوصلات) ويُخفَّت الباقي؛ null = لا تركيز. حالة عرض فقط: لا تُحفظ ولا تدخل في التراجع. */
+  focusId: string | null
+  /** لوحة «المخطط» (قائمة بالمجموعات والبطاقات للتنقل) مفتوحة؟ واجهة مؤقتة لا تُحفظ. */
+  outlineOpen: boolean
+  /** عرض تقديمي فعّال: معرّفات المجموعات بترتيب الشرائح والشريحة الحالية. حالة عرض فقط: لا تُحفظ ولا تدخل في التراجع. */
+  presentation: { slideIds: string[]; index: number } | null
+  /** شريط «بحث على اللوحة» مفتوح؟ (حالة واجهة مؤقتة، لا تُحفظ) */
+  findOpen: boolean
   // ── عرض اللوحة والحفظ والتاريخ ──
   /** آخر عرض (إزاحة وتكبير) للوحة؛ يُحفظ مع المحتوى ويُستعاد عند الفتح. تغييره لا يدخل سجل التراجع. */
   viewport: Viewport
@@ -88,6 +101,12 @@ export interface CanvasState {
   addNode: (node: CanvasNode) => void
   /** يضيف عدة عقد دفعة واحدة ويحدّدها كلها. */
   addNodes: (nodes: CanvasNode[]) => void
+  /** يلصق بطاقات مع وصلاتها (من الحافظة) ويحددها؛ يعيد معرّفاتها، أو [] إن لم تتسع اللوحة */
+  pasteItems: (items: { nodes: CanvasNode[]; edges: CanvasEdge[] }) => string[]
+  /** ينقل بطاقات إلى مواضع جديدة (محاذاة/توزيع) في خطوة تراجع واحدة، ثم يعيد تقييم عضوية المجموعات */
+  /** يقدّم البطاقات أو يؤخّرها في الطبقات (ترتيب الرسم)؛ المجموعات تبقى خلف العناصر دائماً */
+  reorderLayers: (ids: readonly string[], move: LayerMove) => void
+  moveNodes: (placements: readonly { id: string; position: { x: number; y: number } }[]) => void
   updateNodeData: <K extends CanvasNodeType>(id: string, type: K, patch: NodePatchMap[K]) => void
   updateStickyNote: (id: string, patch: NodePatchMap['sticky']) => void
   updateTextCard: (id: string, patch: NodePatchMap['text']) => void
@@ -104,6 +123,8 @@ export interface CanvasState {
   selectEdge: (id: string) => void
 
   connectNodes: (connection: Connection) => ConnectResult
+  /** ينقل طرف وصلة قائمة إلى عقدة أو مقبض آخر (خطوة تراجع واحدة)؛ تبقى بياناتها (اللون والنمط والتسمية) */
+  reconnectEdge: (edgeId: string, connection: Connection) => ConnectResult
   clickConnect: (nodeId: string) => ClickConnectResult
   setConnectSource: (id: string | null) => void
   updateEdge: (id: string, patch: Partial<CanvasEdgeData>) => void
@@ -119,6 +140,16 @@ export interface CanvasState {
   toggleMinimap: () => void
   togglePanel: () => void
   setShortcutsOpen: (open: boolean) => void
+  setPaletteOpen: (open: boolean) => void
+  setTagFilter: (tag: string | null) => void
+  setFocusId: (id: string | null) => void
+  setOutlineOpen: (open: boolean) => void
+  startPresentation: (slideIds: string[], index?: number) => void
+  setSlideIndex: (index: number) => void
+  endPresentation: () => void
+  setFindOpen: (open: boolean) => void
+  /** يحدد هذه البطاقات فقط (ويلغي أي تحديد آخر، وتحديد الوصلات) */
+  selectNodes: (ids: readonly string[]) => void
 
   setViewport: (viewport: Viewport) => void
   setSaveStatus: (status: SaveStatus) => void
@@ -233,6 +264,12 @@ export function createCanvasStore(options: CanvasStoreOptions = {}): CanvasStore
     minimapVisible: options.minimapVisible ?? true,
     panelCollapsed: options.panelCollapsed ?? false,
     shortcutsOpen: false,
+    paletteOpen: false,
+    tagFilter: null,
+    focusId: null,
+    outlineOpen: false,
+    presentation: null,
+    findOpen: false,
     viewport: options.initialViewport ?? { x: 0, y: 0, zoom: 1 },
     saveStatus: { kind: 'saved', at: null },
     canUndo: false,
@@ -277,6 +314,39 @@ export function createCanvasStore(options: CanvasStoreOptions = {}): CanvasStore
         // عقدة تُنشأ فوق مجموعة تنضم إليها فوراً (قاعدة العضوية بالمركز)
         const nodes = reconcileMembership(combined, new Set(added.map((node) => node.id)))
         return { nodes, edges: deselectedEdges }
+      }),
+
+    pasteItems: ({ nodes: added, edges: addedEdges }) => {
+      if (added.length === 0 || !get().canAdd(added.length, addedEdges.length)) return []
+      set((state) => {
+        const deselectedNodes = state.nodes.map((existing) => (existing.selected ? { ...existing, selected: false } : existing))
+        const deselectedEdges = state.edges.map((edge) => (edge.selected ? { ...edge, selected: false } : edge))
+        const combined = sortGroupsFirst([...deselectedNodes, ...added.map((node) => ({ ...node, selected: true }))])
+        // الأعضاء يبقون في مجموعاتهم المنسوخة؛ البطاقات الجذرية قد تقع داخل مجموعة موجودة فتنضم إليها
+        const roots = new Set(added.filter((node) => node.parentId === undefined).map((node) => node.id))
+        return {
+          nodes: reconcileMembership(combined, roots),
+          edges: [...deselectedEdges, ...addedEdges.map((edge) => ({ ...edge, selected: false }))],
+        }
+      })
+      return added.map((node) => node.id)
+    },
+
+    reorderLayers: (ids, move) =>
+      set((state) => {
+        const next = reorderNodeLayers(state.nodes, new Set(ids), move)
+        return next === state.nodes ? state : { nodes: next }
+      }),
+
+    moveNodes: (placements) =>
+      set((state) => {
+        if (placements.length === 0) return state
+        const target = new Map(placements.map((placement) => [placement.id, placement.position]))
+        const moved = state.nodes.map((node) => {
+          const position = target.get(node.id)
+          return position ? { ...node, position: { x: position.x, y: position.y } } : node
+        })
+        return { nodes: reconcileMembership(moved, new Set(target.keys())) }
       }),
 
     updateNodeData: (id, type, patch) =>
@@ -381,6 +451,33 @@ export function createCanvasStore(options: CanvasStoreOptions = {}): CanvasStore
       return { ok: true, edgeId: edge.id }
     },
 
+    reconnectEdge: (edgeId, connection) => {
+      const { nodes, edges } = get()
+      const existing = edges.find((edge) => edge.id === edgeId)
+      if (!existing) return { ok: false, reason: 'That connection no longer exists.' }
+      // الوصلة نفسها لا تُحسب «مكررة»: يجوز نقل طرفها إلى مقبض آخر في العقدة نفسها
+      const check = checkConnection(
+        nodes,
+        edges.filter((edge) => edge.id !== edgeId),
+        connection.source,
+        connection.target,
+      )
+      if (!check.ok) return check
+      const sourceHandle = isHandleSide(connection.sourceHandle) ? connection.sourceHandle : existing.sourceHandle
+      const targetHandle = isHandleSide(connection.targetHandle) ? connection.targetHandle : existing.targetHandle
+      set((state) => ({
+        edges: state.edges.map((edge) =>
+          edge.id === edgeId
+            ? { ...edge, source: connection.source, target: connection.target, sourceHandle, targetHandle, selected: true }
+            : edge.selected
+              ? { ...edge, selected: false }
+              : edge,
+        ),
+        nodes: state.nodes.map((node) => (node.selected ? { ...node, selected: false } : node)),
+      }))
+      return { ok: true, edgeId }
+    },
+
     clickConnect: (nodeId) => {
       const { nodes, edges, connectSource } = get()
       const node = nodes.find((n) => n.id === nodeId)
@@ -433,6 +530,32 @@ export function createCanvasStore(options: CanvasStoreOptions = {}): CanvasStore
     toggleMinimap: () => set((state) => ({ minimapVisible: !state.minimapVisible })),
     togglePanel: () => set((state) => ({ panelCollapsed: !state.panelCollapsed })),
     setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
+    setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
+    setTagFilter: (tagFilter) => set({ tagFilter }),
+    setFocusId: (focusId) => set({ focusId }),
+    setOutlineOpen: (outlineOpen) => set({ outlineOpen }),
+    startPresentation: (slideIds, index = 0) => {
+      if (slideIds.length === 0) return
+      // العرض للقراءة: نغلق ما يشتت (بحث، أداة إنشاء) ونفرّغ التحديد كي لا يظهر شريط إجراءات فوق الشريحة
+      get().clearSelection()
+      set({ presentation: { slideIds, index: Math.min(Math.max(0, index), slideIds.length - 1) }, tool: 'select', findOpen: false })
+    },
+    setSlideIndex: (index) =>
+      set((state) =>
+        state.presentation
+          ? { presentation: { ...state.presentation, index: Math.min(Math.max(0, index), state.presentation.slideIds.length - 1) } }
+          : {},
+      ),
+    endPresentation: () => set({ presentation: null }),
+    setFindOpen: (findOpen) => set({ findOpen }),
+    selectNodes: (ids) =>
+      set((state) => {
+        const wanted = new Set(ids)
+        return {
+          nodes: state.nodes.map((node) => (node.selected === wanted.has(node.id) ? node : { ...node, selected: wanted.has(node.id) })),
+          edges: state.edges.map((edge) => (edge.selected ? { ...edge, selected: false } : edge)),
+        }
+      }),
 
     setViewport: (viewport) => set({ viewport }),
     setSaveStatus: (saveStatus) => set({ saveStatus }),

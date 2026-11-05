@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="InfiniteSpace — organize your thinking visually on an unlimited canvas." />
     <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0a0a0b" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f2f2f2" media="(prefers-color-scheme: light)" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="InfiniteSpace" />
+    <meta property="og:title" content="InfiniteSpace" />
+    <meta property="og:description" content="Organize your thinking visually on an unlimited canvas. Everything stays in your browser." />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="InfiniteSpace" />
+    <meta name="twitter:description" content="Organize your thinking visually on an unlimited canvas. Everything stays in your browser." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>InfiniteSpace</title>
     <script>
@@ -12,9 +21,17 @@
          يقرأ نفس مفتاح localStorage الذي يستخدمه ui-store. */
       try {
         var raw = localStorage.getItem('infinitespace:v1:ui');
-        var theme = raw && JSON.parse(raw).state.theme;
+        var saved = raw ? JSON.parse(raw).state : {};
+        var mode = saved.themeMode || saved.theme;
+        var theme = mode;
+        if (mode === 'system') {
+          theme = window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches ? 'light' : 'dark';
+        }
         if (theme === 'light' || theme === 'dark') {
           document.documentElement.setAttribute('data-theme', theme);
+        }
+        if (saved.highContrast === true) {
+          document.documentElement.setAttribute('data-contrast', 'high');
         }
       } catch (_) {
         /* التخزين غير متاح أو البيانات تالفة: نبقى على السمة الافتراضية (داكنة) */

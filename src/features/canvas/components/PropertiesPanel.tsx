@@ -30,8 +30,11 @@ export function PropertiesPanel({ commands }: { commands: CanvasCommands }) {
       aria-label="Properties"
       className={cn(
         'properties-panel absolute z-[6] flex flex-col overflow-hidden rounded-[20px] border border-line bg-surface/95 shadow-pop backdrop-blur-md',
-        'top-[76px] right-3 w-72 max-h-[calc(100dvh-26rem)] min-h-40',
-        'max-sm:inset-x-2 max-sm:top-auto max-sm:bottom-[88px] max-sm:w-auto max-sm:max-h-[48dvh]',
+        'top-[76px] right-3 w-72 max-h-[calc(100dvh-26rem)]',
+        // الحد الأدنى للارتفاع عند التوسع فقط: وهي مطوية (الافتراضي تحت 1024px) تبقى شريط عنوان لا كتلة فارغة بارتفاع 160px
+        !collapsed && 'min-h-40',
+        // على الهاتف تجلس فوق مجموعة التحكم السفلية (صف واحد حتى 460px، وصفان تحتها: انظر ZoomControls) كي لا تغطي أزرارها
+        'max-sm:inset-x-2 max-sm:top-auto max-sm:bottom-[146px] max-[460px]:bottom-[196px]! max-sm:w-auto max-sm:max-h-[40dvh]',
       )}
     >
       <header className="flex shrink-0 items-center gap-2.5 px-4 py-2.5">

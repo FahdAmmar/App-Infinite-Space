@@ -18,6 +18,7 @@ import {
   WORKSPACE_ICON_LABELS,
 } from '../utils/constants'
 import { validateWorkspaceText, type WorkspaceTextErrors } from '../utils/validation'
+import { TEMPLATES, type TemplateId, getTemplate } from '../templates/template-catalog'
 import { WorkspaceIcon } from './WorkspaceIcon'
 
 interface WorkspaceFormDialogProps {
@@ -26,7 +27,8 @@ interface WorkspaceFormDialogProps {
   /** مطلوب في وضع التعديل لملء الحقول الحالية */
   workspace?: WorkspaceMeta
   onClose: () => void
-  onSubmit: (input: WorkspaceInput) => void
+  /** القالب المختار عند الإنشاء (blank = لوحة فارغة)؛ في وضع التعديل دائماً blank */
+  onSubmit: (input: WorkspaceInput, template: TemplateId) => void
 }
 
 export function WorkspaceFormDialog({ open, mode, workspace, onClose, onSubmit }: WorkspaceFormDialogProps) {
@@ -37,7 +39,7 @@ export function WorkspaceFormDialog({ open, mode, workspace, onClose, onSubmit }
       title={mode === 'create' ? 'Create workspace' : 'Rename & customize'}
       description={
         mode === 'create'
-          ? 'Name it, pick a color and an icon. You can change all of this later.'
+          ? 'Start blank or from a template, then name it and pick a color and an icon. You can change all of this later.'
           : 'Changes apply right away.'
       }
     >
@@ -50,7 +52,7 @@ interface WorkspaceFormProps {
   mode: 'create' | 'edit'
   workspace?: WorkspaceMeta
   onCancel: () => void
-  onSubmit: (input: WorkspaceInput) => void
+  onSubmit: (input: WorkspaceInput, template: TemplateId) => void
 }
 
 function WorkspaceForm({ mode, workspace, onCancel, onSubmit }: WorkspaceFormProps) {
@@ -59,8 +61,23 @@ function WorkspaceForm({ mode, workspace, onCancel, onSubmit }: WorkspaceFormPro
   const [color, setColor] = useState<WorkspaceColorId>(workspace?.color ?? DEFAULT_COLOR)
   const [icon, setIcon] = useState<WorkspaceIconId>(workspace?.icon ?? DEFAULT_ICON)
   const [errors, setErrors] = useState<WorkspaceTextErrors>({})
+  const [template, setTemplate] = useState<TemplateId>('blank')
   const nameRef = useRef<HTMLInputElement>(null)
   const descriptionRef = useRef<HTMLTextAreaElement>(null)
+  // لون وأيقونة القالب يُقترحان إلى أن يختار المستخدم بنفسه؛ بعدها لا نكتب فوق اختياره
+  const pickedLook = useRef(false)
+
+  const chooseTemplate = (next: TemplateId) => {
+    const previous = getTemplate(template)
+    const info = getTemplate(next)
+    setTemplate(next)
+    // الاسم المقترح يحلّ محل الحقل الفارغ أو الاسم المقترح السابق فقط، لا ما كتبه المستخدم
+    if (name.trim() === '' || name === previous.suggestedName) setName(info.suggestedName)
+    if (!pickedLook.current) {
+      setColor(info.color)
+      setIcon(info.icon)
+    }
+  }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -71,7 +88,7 @@ function WorkspaceForm({ mode, workspace, onCancel, onSubmit }: WorkspaceFormPro
       ;(result.errors.name ? nameRef : descriptionRef).current?.focus()
       return
     }
-    onSubmit({ ...result.value, color, icon })
+    onSubmit({ ...result.value, color, icon }, mode === 'create' ? template : 'blank')
   }
 
   const previewStyle = { '--ws': WORKSPACE_COLORS[color].hex } as CSSProperties
@@ -86,6 +103,30 @@ function WorkspaceForm({ mode, workspace, onCancel, onSubmit }: WorkspaceFormPro
           {name.trim() || 'Untitled workspace'}
         </span>
       </div>
+
+      {mode === 'create' && (
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium">Start from</legend>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {TEMPLATES.map((item) => (
+              <label key={item.id} className="relative cursor-pointer">
+                <input
+                  type="radio"
+                  name="workspace-template"
+                  value={item.id}
+                  checked={template === item.id}
+                  onChange={() => chooseTemplate(item.id)}
+                  className="peer sr-only"
+                />
+                <span className="block h-full rounded-xl border border-line bg-surface px-3 py-2.5 transition-colors hover:bg-raised peer-checked:border-accent peer-checked:bg-accent/15 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent">
+                  <span className="block text-sm font-medium">{item.label}</span>
+                  <span className="mt-0.5 block text-xs leading-snug text-muted">{item.blurb}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
 
       <div>
         <label htmlFor="workspace-name" className="mb-1.5 block text-sm font-medium">
@@ -156,7 +197,10 @@ function WorkspaceForm({ mode, workspace, onCancel, onSubmit }: WorkspaceFormPro
                 name="workspace-color"
                 value={id}
                 checked={color === id}
-                onChange={() => setColor(id)}
+                onChange={() => {
+                  pickedLook.current = true
+                  setColor(id)
+                }}
                 className="peer sr-only"
               />
               <span
@@ -180,7 +224,10 @@ function WorkspaceForm({ mode, workspace, onCancel, onSubmit }: WorkspaceFormPro
                 name="workspace-icon"
                 value={id}
                 checked={icon === id}
-                onChange={() => setIcon(id)}
+                onChange={() => {
+                  pickedLook.current = true
+                  setIcon(id)
+                }}
                 className="peer sr-only"
               />
               <span

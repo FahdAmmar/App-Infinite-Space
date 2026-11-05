@@ -38,6 +38,44 @@ describe('intakeImageFile', () => {
   })
 })
 
+describe('intakeImageFile: compression', () => {
+  const big = () => png('big.png', 2000)
+
+  it('stores the compressed picture and reports its new size, keeping the original file name', async () => {
+    const storage = new MemoryImageStorage()
+    const smaller = new Blob([new Uint8Array(300)], { type: 'image/webp' })
+    const compress = () => Promise.resolve({ blob: smaller, width: 400, height: 200 })
+    const result = await intakeImageFile(big(), { storage, readDimensions, compress })
+    expect(result).toMatchObject({ fileName: 'big.png', naturalWidth: 400, naturalHeight: 200 })
+    expect(await storage.load(result.imageId)).toBe(smaller)
+  })
+
+  it('stores the original when the compressor declines', async () => {
+    const storage = new MemoryImageStorage()
+    const file = big()
+    const result = await intakeImageFile(file, { storage, readDimensions, compress: () => Promise.resolve(null) })
+    expect(await storage.load(result.imageId)).toBe(file)
+    expect(result).toMatchObject({ naturalWidth: 800, naturalHeight: 400 })
+  })
+
+  it('never loses the picture when the compressor fails', async () => {
+    const storage = new MemoryImageStorage()
+    const file = big()
+    const result = await intakeImageFile(file, { storage, readDimensions, compress: () => Promise.reject(new Error('out of memory')) })
+    expect(await storage.load(result.imageId)).toBe(file)
+  })
+
+  it('does not compress a file that failed validation', async () => {
+    let called = false
+    const compress = () => {
+      called = true
+      return Promise.resolve(null)
+    }
+    await expect(intakeImageFile(new File(['x'], 'a.txt', { type: 'text/plain' }), { storage: new MemoryImageStorage(), readDimensions, compress })).rejects.toThrow()
+    expect(called).toBe(false)
+  })
+})
+
 describe('addImageFiles', () => {
   it('creates one image card per valid file, cascading their positions', async () => {
     const deps = { storage: new MemoryImageStorage(), readDimensions }

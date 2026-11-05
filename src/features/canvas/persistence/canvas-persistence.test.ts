@@ -232,3 +232,90 @@ describe('ordering and stale writes', () => {
     expect(maxActive).toBe(1)
   })
 })
+
+describe('pausing (another tab changed the workspace)', () => {
+  it('stops writing, shows the paused status, and keeps edits in memory', async () => {
+    const persistence = setup()
+    persistence.setPaused(true)
+    expect(store.getState().saveStatus.kind).toBe('paused')
+
+    store.getState().addNode(sticky('a'))
+    expect(store.getState().saveStatus.kind).toBe('paused') // التعديل لا يغيّر الحالة إلى «غير محفوظ»
+    await vi.advanceTimersByTimeAsync(SAVE_MAX_WAIT_MS * 3)
+    expect(storage.saves).toHaveLength(0)
+    expect(store.getState().nodes).toHaveLength(1)
+    expect(persistence.hasUnsavedChanges()).toBe(true)
+  })
+
+  it('a flush on leaving the editor writes nothing while paused', async () => {
+    const persistence = setup()
+    store.getState().addNode(sticky('a'))
+    persistence.setPaused(true)
+    await persistence.flush()
+    await persistence.flush()
+    expect(storage.saves).toHaveLength(0)
+  })
+
+  it('cancels a write that was already scheduled when paused', async () => {
+    const persistence = setup()
+    store.getState().addNode(sticky('a'))
+    await vi.advanceTimersByTimeAsync(SAVE_DEBOUNCE_MS - 100)
+    persistence.setPaused(true)
+    await vi.advanceTimersByTimeAsync(SAVE_MAX_WAIT_MS)
+    expect(storage.saves).toHaveLength(0)
+  })
+
+  it('resuming with unsaved edits saves them after the debounce', async () => {
+    const persistence = setup()
+    persistence.setPaused(true)
+    store.getState().addNode(sticky('a'))
+    persistence.setPaused(false)
+    expect(store.getState().saveStatus.kind).toBe('unsaved')
+    await vi.advanceTimersByTimeAsync(SAVE_DEBOUNCE_MS + 1)
+    expect(ids(storage.saves[0])).toEqual(['a'])
+    expect(store.getState().saveStatus.kind).toBe('saved')
+  })
+
+  it('an explicit flush right after resuming saves immediately', async () => {
+    const persistence = setup()
+    persistence.setPaused(true)
+    store.getState().addNode(sticky('a'))
+    persistence.setPaused(false)
+    await persistence.flush()
+    expect(storage.saves).toHaveLength(1)
+  })
+
+  it('resuming with nothing to save reports saved', () => {
+    const persistence = setup()
+    persistence.setPaused(true)
+    persistence.setPaused(false)
+    expect(store.getState().saveStatus.kind).toBe('saved')
+  })
+
+  it('stays paused when the pause arrives while a write is in flight', async () => {
+    const persistence = setup()
+    let release: () => void = () => undefined
+    storage.gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    store.getState().addNode(sticky('a'))
+    const writing = persistence.flush()
+    await flush()
+    persistence.setPaused(true)
+    store.getState().addNode(sticky('b'))
+    release()
+    await writing
+    await vi.advanceTimersByTimeAsync(SAVE_MAX_WAIT_MS)
+    expect(store.getState().saveStatus.kind).toBe('paused')
+    expect(storage.saves).toHaveLength(1) // ما كُتب قبل الإيقاف فقط
+  })
+
+  it('setting the same value twice changes nothing', () => {
+    const persistence = setup()
+    persistence.setPaused(false)
+    expect(store.getState().saveStatus.kind).toBe('saved')
+    persistence.setPaused(true)
+    persistence.setPaused(true)
+    expect(store.getState().saveStatus.kind).toBe('paused')
+  })
+})

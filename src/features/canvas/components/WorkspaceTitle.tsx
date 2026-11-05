@@ -4,6 +4,7 @@ import { useWorkspaceStore } from '@/stores/workspace-store'
 import type { WorkspaceMeta } from '@/features/workspaces/types/workspace'
 import { NAME_MAX_LENGTH } from '@/features/workspaces/utils/constants'
 import { validateWorkspaceText } from '@/features/workspaces/utils/validation'
+import { TruncatedText } from '@/components/ui/TruncatedText'
 
 /** اسم المساحة في الشريط العلوي: يظهر كنص، وبالنقر يتحول لحقل تعديل (Enter يحفظ، Esc يلغي). */
 export function WorkspaceTitle({ workspace }: { workspace: WorkspaceMeta }) {
@@ -28,12 +29,10 @@ export function WorkspaceTitle({ workspace }: { workspace: WorkspaceMeta }) {
       type="button"
       onClick={() => setEditing(true)}
       title="Rename workspace"
-      className="group flex h-11 min-w-0 items-center gap-2 rounded-full border border-line bg-raised px-4 text-left shadow-pop transition-colors hover:border-muted/50"
+      className="group flex h-11 min-w-0 items-center gap-2 rounded-full border border-line bg-raised px-3 text-start shadow-pop sm:px-4 transition-colors hover:border-muted/50"
     >
-      <span className="truncate text-sm font-semibold">
-        <bdi>{workspace.name}</bdi>
-      </span>
-      <Pencil className="size-3.5 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden="true" />
+      <TruncatedText className="min-w-0 text-sm font-semibold">{workspace.name}</TruncatedText>
+      <Pencil className="size-3.5 shrink-0 text-muted opacity-0 pointer-coarse:hidden transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden="true" />
       <span className="sr-only">Rename workspace</span>
     </button>
   )

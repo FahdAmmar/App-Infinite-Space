@@ -4,6 +4,7 @@ import { formatRelativeTime } from '@/lib/time'
 import type { WorkspaceMeta } from '../types/workspace'
 import { WORKSPACE_COLORS } from '../utils/constants'
 import { WorkspaceIcon } from './WorkspaceIcon'
+import { TruncatedText } from '@/components/ui/TruncatedText'
 
 interface RecentListProps {
   workspaces: readonly WorkspaceMeta[]
@@ -32,7 +33,7 @@ export function RecentList({ workspaces, now }: RecentListProps) {
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-sm font-medium">
-                  <bdi>{workspace.name}</bdi>
+                  <TruncatedText>{workspace.name}</TruncatedText>
                 </span>
                 <span className="block text-xs text-muted">
                   Opened {formatRelativeTime(workspace.lastOpenedAt ?? workspace.updatedAt, now)}

@@ -35,6 +35,24 @@ export function checkConnection(
 }
 
 /**
+ * سبب رفض إفلات سحب وصل (جديد أو نقل طرف) على بطاقة، أو null إن كان مقبولاً.
+ * React Flow يرفض الإفلات غير الصالح بصمت قبل أن يصلنا، فنعيد فحصه هنا بعد انتهاء السحب لنشرح السبب للمستخدم.
+ * `draggedEnd` الطرف الذي يُسحب: 'source' يعني أن البطاقة المُفلَت عليها ستصبح المصدر.
+ */
+export function rejectedDropReason(
+  nodes: readonly CanvasNode[],
+  edges: readonly CanvasEdge[],
+  fixedNodeId: string,
+  droppedOnNodeId: string,
+  draggedEnd: 'source' | 'target',
+): string | null {
+  const source = draggedEnd === 'source' ? droppedOnNodeId : fixedNodeId
+  const target = draggedEnd === 'source' ? fixedNodeId : droppedOnNodeId
+  const check = checkConnection(nodes, edges, source, target)
+  return check.ok ? null : check.reason
+}
+
+/**
  * يختار جهتي المقابض المتقابلتين عند الوصل بدون سحب (أداة الوصل): الجهة الأقرب لاتجاه العقدة الأخرى،
  * فتخرج الوصلة من الجانب الذي تتجه إليه بدل أن تلتف حول البطاقة.
  */

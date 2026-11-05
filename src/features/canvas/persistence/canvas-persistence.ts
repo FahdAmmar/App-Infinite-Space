@@ -39,6 +39,11 @@ export interface CanvasPersistence {
   dispose: () => void
   /** هل هناك تعديلات غير محفوظة (أو فشل حفظ)؟ */
   hasUnsavedChanges: () => boolean
+  /**
+   * يوقف الكتابة (أو يستأنفها). يُستعمل حين يغيّر تبويب آخر المساحة: متابعة الحفظ كانت ستمحو تعديلاته بصمت.
+   * أثناء الإيقاف لا يكتب شيء أبداً، حتى الحفظ عند مغادرة المحرر، فيمكن تجاهل نسخة قديمة بأمان.
+   */
+  setPaused: (paused: boolean) => void
 }
 
 const viewportEqual = (a: Viewport, b: Viewport): boolean => a.x === b.x && a.y === b.y && a.zoom === b.zoom
@@ -67,6 +72,7 @@ export function createCanvasPersistence(options: CanvasPersistenceOptions): Canv
   let timer: ReturnType<typeof setTimeout> | null = null
   let firstDirtyAt: number | null = null
   let disposed = false
+  let paused = false
 
   const isDirty = (): boolean => {
     const current = read(store.getState())
@@ -90,6 +96,7 @@ export function createCanvasPersistence(options: CanvasPersistenceOptions): Canv
   const run = async (): Promise<void> => {
     clearTimer()
     firstDirtyAt = null
+    if (paused) return
     const status = store.getState().saveStatus
     if (!isDirty()) {
       // لا جديد منذ آخر حفظ (أو رجع المستخدم بالتراجع إلى الحالة المحفوظة حتى لو كان آخر حفظ فاشلاً): لا ضياع
@@ -102,7 +109,7 @@ export function createCanvasPersistence(options: CanvasPersistenceOptions): Canv
     try {
       await storage.saveCanvas(workspaceId, serializeCanvas(snapshot.nodes, snapshot.edges, snapshot.viewport))
     } catch (error) {
-      setStatus({ kind: 'error', reason: toStorageError(error).reason })
+      setStatus(paused ? { kind: 'paused' } : { kind: 'error', reason: toStorageError(error).reason })
       return
     }
 
@@ -110,7 +117,10 @@ export function createCanvasPersistence(options: CanvasPersistenceOptions): Canv
     saved = snapshot
     onSaved?.(summarizeCanvas(snapshot.nodes), contentChanged)
 
-    if (isDirty()) {
+    if (paused) {
+      // أُوقف الحفظ أثناء الكتابة الجارية: نحافظ على حالة الإيقاف ولا نجدول شيئاً
+      setStatus({ kind: 'paused' })
+    } else if (isDirty()) {
       // تغيّر شيء أثناء الكتابة: نبقى «غير محفوظ» ونجدول حفظاً آخر (لن نكتب فوق الأحدث: القراءة لحظة التنفيذ)
       setStatus({ kind: 'unsaved' })
       if (!disposed) schedule()
@@ -125,7 +135,7 @@ export function createCanvasPersistence(options: CanvasPersistenceOptions): Canv
   }
 
   function schedule(): void {
-    if (disposed) return
+    if (disposed || paused) return
     const t = now()
     firstDirtyAt ??= t
     clearTimer()
@@ -136,7 +146,7 @@ export function createCanvasPersistence(options: CanvasPersistenceOptions): Canv
   const unsubscribe = store.subscribe((state, previous) => {
     if (state.nodes === previous.nodes && state.edges === previous.edges && state.viewport === previous.viewport) return
     if (isDirty()) {
-      if (state.saveStatus.kind !== 'error' && state.saveStatus.kind !== 'saving') setStatus({ kind: 'unsaved' })
+      if (!['error', 'saving', 'paused'].includes(state.saveStatus.kind)) setStatus({ kind: 'unsaved' })
       schedule()
     } else if (state.saveStatus.kind === 'unsaved') {
       // رجعنا إلى الحالة المحفوظة (تراجع): لا حاجة لكتابة
@@ -155,5 +165,19 @@ export function createCanvasPersistence(options: CanvasPersistenceOptions): Canv
       unsubscribe()
     },
     hasUnsavedChanges: () => isDirty() || store.getState().saveStatus.kind === 'error',
+    setPaused: (next) => {
+      if (paused === next) return
+      paused = next
+      if (next) {
+        clearTimer()
+        firstDirtyAt = null
+        setStatus({ kind: 'paused' })
+      } else if (isDirty()) {
+        setStatus({ kind: 'unsaved' })
+        schedule()
+      } else {
+        setStatus({ kind: 'saved', at: now() })
+      }
+    },
   }
 }

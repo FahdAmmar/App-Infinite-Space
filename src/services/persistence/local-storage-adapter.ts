@@ -17,6 +17,7 @@ import {
 } from '@/features/workspaces/types/workspace'
 import {
   StorageError,
+  type BackupInfo,
   type KeyValueStore,
   type LoadedCanvas,
   type LoadedWorkspaces,
@@ -29,6 +30,24 @@ export const CANVAS_KEY_PREFIX = 'infinitespace:v1:canvas:'
 const SCHEMA_VERSION = 1
 
 const canvasKey = (workspaceId: string): string => `${CANVAS_KEY_PREFIX}${workspaceId}`
+
+const WORKSPACES_BACKUP_PREFIX = `${WORKSPACES_KEY}:backup-`
+const CANVAS_BACKUP_SUFFIX = ':backup'
+
+const byteLength = (text: string): number => new TextEncoder().encode(text).length
+
+/** يصنّف مفتاح localStorage: نسخة احتياطية لقائمة المساحات، أو للوحة، أو ليس نسخة. */
+export function describeBackupKey(key: string): Pick<BackupInfo, 'kind' | 'workspaceId' | 'createdAt'> | null {
+  if (key.startsWith(WORKSPACES_BACKUP_PREFIX)) {
+    const stamp = Number(key.slice(WORKSPACES_BACKUP_PREFIX.length))
+    return { kind: 'workspaces', workspaceId: null, createdAt: Number.isFinite(stamp) && stamp > 0 ? stamp : null }
+  }
+  if (key.startsWith(CANVAS_KEY_PREFIX) && key.endsWith(CANVAS_BACKUP_SUFFIX)) {
+    const workspaceId = key.slice(CANVAS_KEY_PREFIX.length, key.length - CANVAS_BACKUP_SUFFIX.length)
+    return workspaceId.length > 0 ? { kind: 'canvas', workspaceId, createdAt: null } : null
+  }
+  return null
+}
 
 // ───────────── التحقق من البيانات المقروءة ─────────────
 // كل ما نقرأه من localStorage "غير موثوق": قد يكون عدّله المستخدم أو كتبه إصدار قديم/جديد.
@@ -264,6 +283,38 @@ export class LocalStorageAdapter implements StorageAdapter {
   async deleteCanvas(workspaceId: string): Promise<void> {
     try {
       this.store.removeItem(canvasKey(workspaceId))
+    } catch (error) {
+      throw toStorageError(error)
+    }
+  }
+
+  async listBackups(): Promise<BackupInfo[]> {
+    const { length, key } = this.store
+    if (typeof length !== 'number' || typeof key !== 'function') return []
+    const backups: BackupInfo[] = []
+    try {
+      for (let index = 0; index < length; index += 1) {
+        const name = this.store.key?.(index)
+        const info = typeof name === 'string' ? describeBackupKey(name) : null
+        if (!name || !info) continue
+        const raw = this.store.getItem(name)
+        if (raw !== null) backups.push({ key: name, ...info, sizeBytes: byteLength(raw) })
+      }
+    } catch (error) {
+      throw toStorageError(error)
+    }
+    return backups
+  }
+
+  async readBackup(key: string): Promise<unknown> {
+    // نقبل مفاتيح النسخ الاحتياطية فقط: لا نسمح بقراءة أي مفتاح آخر عبر هذه الدالة
+    return describeBackupKey(key) ? this.read(key) : null
+  }
+
+  async deleteBackup(key: string): Promise<void> {
+    if (!describeBackupKey(key)) return
+    try {
+      this.store.removeItem(key)
     } catch (error) {
       throw toStorageError(error)
     }

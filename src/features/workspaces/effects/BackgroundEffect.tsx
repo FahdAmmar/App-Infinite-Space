@@ -1,8 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/cn'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useUiStore } from '@/stores/ui-store'
 import type { BackgroundScene, SceneColors } from './createBackgroundScene'
 import { useEffectsAllowed } from './useEffectsAllowed'
+
+/**
+ * الحاوية في لوحة التحكم تظهر من breakpoint md فقط (hidden md:block، أي 768px). تحت هذا العرض تبقى مخفية،
+ * فتحميل Three.js (نحو 515 kB، 127 kB مضغوطاً) وإنشاء سياق WebGL لعنصر غير مرئي هدر خالص على الهاتف.
+ * يجب أن يبقى هذا الاستعلام مطابقاً لـ breakpoint md في Tailwind.
+ */
+const VISIBLE_QUERY = '(min-width: 768px)'
 
 /** ألوان المشهد من رموز التصميم الحالية (نفس تدرج الوصلات) وبحسب السمة. */
 function readColors(): SceneColors {
@@ -15,16 +23,17 @@ function readColors(): SceneColors {
 }
 
 /**
- * حاوية المؤثر الزخرفي في لوحة التحكم. لا يُحمَّل Three.js إلا عند الحاجة الفعلية (مفعّل ومسموح)،
+ * حاوية المؤثر الزخرفي في لوحة التحكم. لا يُحمَّل Three.js إلا عند الحاجة الفعلية (مفعّل ومسموح والعنصر ظاهر)،
  * ولا يُركَّب أبداً في المحرر. أي فشل (WebGL غير متاح، فقدان السياق) يُسكت المؤثر فقط.
  * الحاوية aria-hidden وبلا استقبال للمؤشر، فلا تؤثر على التفاعل ولا قارئات الشاشة.
  */
 export function BackgroundEffect({ className }: { className?: string }) {
   const enabled = useUiStore((state) => state.backgroundEffect)
   const allowed = useEffectsAllowed()
+  const visible = useMediaQuery(VISIBLE_QUERY)
   const [failed, setFailed] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
-  const active = enabled && allowed && !failed
+  const active = enabled && allowed && visible && !failed
 
   useEffect(() => {
     const container = containerRef.current

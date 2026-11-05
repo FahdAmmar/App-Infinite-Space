@@ -60,6 +60,17 @@ export function SaveStatusPill() {
     )
   }
 
+  if (status.kind === 'paused') {
+    // لا زر هنا: القرار (تحميل الأحدث أو الإبقاء على نسختي) في اللافتة الظاهرة تحت الشريط
+    return (
+      <div role="status" className={`${base} border-danger/60 text-ink`} title="Saving is paused because this workspace was changed in another tab.">
+        <AlertTriangle className="size-3.5 shrink-0 text-danger" aria-hidden="true" />
+        <span className="hidden sm:inline">Saving paused</span>
+        <span className="sr-only sm:hidden">Saving paused</span>
+      </div>
+    )
+  }
+
   if (status.kind === 'saving' || status.kind === 'unsaved') {
     return (
       <div role="status" className={`${base} border-line text-muted`} title="Saving to this browser…">

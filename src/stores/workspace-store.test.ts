@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LocalStorageAdapter } from '@/services/persistence/local-storage-adapter'
 import { StorageError, type KeyValueStore, type StorageAdapter } from '@/services/persistence/storage-adapter'
 import type { WorkspaceInput } from '@/features/workspaces/types/workspace'
+import { createWorkspaceMeta } from '@/features/workspaces/utils/factory'
 import { createWorkspaceStore } from './workspace-store'
 import { useUiStore } from './ui-store'
 
@@ -220,5 +221,34 @@ describe('recordCanvasSummary', () => {
     const { store } = await setup()
     store.getState().recordCanvasSummary('ghost', summary, true)
     expect(store.getState().workspaces).toHaveLength(0)
+  })
+})
+
+describe('adoptWorkspaces', () => {
+  const incoming = (id: string, name: string) => ({ ...createWorkspaceMeta({ ...input, name }, 1), id })
+
+  it('adds the workspaces at the top of the list and saves them', async () => {
+    const { store, adapter } = await setup()
+    store.getState().createWorkspace(input)
+    await store.getState().flushSaves()
+
+    await expect(store.getState().adoptWorkspaces([incoming('imp-1', 'Imported')])).resolves.toBe(true)
+    expect(store.getState().workspaces.map((w) => w.id)[0]).toBe('imp-1')
+    expect((await adapter.loadWorkspaces()).workspaces.map((w) => w.id)).toContain('imp-1')
+  })
+
+  it('ignores workspaces whose id already exists and reports success', async () => {
+    const { store } = await setup()
+    await store.getState().adoptWorkspaces([incoming('same', 'First')])
+    await store.getState().adoptWorkspaces([incoming('same', 'Second')])
+    expect(store.getState().workspaces.filter((w) => w.id === 'same')).toHaveLength(1)
+    expect(store.getState().workspaces.find((w) => w.id === 'same')?.name).toBe('First')
+  })
+
+  it('rolls the list back and reports failure when saving fails', async () => {
+    const { store, adapter } = await setup()
+    vi.spyOn(adapter, 'saveWorkspaces').mockRejectedValue(new StorageError('quota', 'full'))
+    await expect(store.getState().adoptWorkspaces([incoming('imp-2', 'Lost')])).resolves.toBe(false)
+    expect(store.getState().workspaces.some((w) => w.id === 'imp-2')).toBe(false)
   })
 })

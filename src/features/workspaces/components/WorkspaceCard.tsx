@@ -1,6 +1,6 @@
 import { useRef, type CSSProperties } from 'react'
 import { Link } from 'react-router'
-import { Copy, Pencil, Trash2 } from 'lucide-react'
+import { Copy, Download, Pencil, Trash2, FileText } from 'lucide-react'
 import { DropdownMenu, type MenuItem } from '@/components/ui/DropdownMenu'
 import { useSpotlight } from '@/hooks/useSpotlight'
 import { formatFullDate, formatRelativeTime } from '@/lib/time'
@@ -8,12 +8,15 @@ import type { WorkspaceMeta } from '../types/workspace'
 import { WORKSPACE_COLORS } from '../utils/constants'
 import { WorkspaceIcon } from './WorkspaceIcon'
 import { WorkspacePreview } from './WorkspacePreview'
+import { TruncatedText } from '@/components/ui/TruncatedText'
 
 interface WorkspaceCardProps {
   workspace: WorkspaceMeta
   now: number
   onEdit: (workspace: WorkspaceMeta) => void
   onDuplicate: (workspace: WorkspaceMeta) => void
+  onExport: (workspace: WorkspaceMeta) => void
+  onExportViewer: (workspace: WorkspaceMeta) => void
   onDelete: (workspace: WorkspaceMeta) => void
 }
 
@@ -21,7 +24,7 @@ interface WorkspaceCardProps {
  * بطاقة مساحة بتركيب بطاقات المرجع الأول: صف رأس (أيقونة + اسم + قائمة ⋯)
  * ثم إطار معاينة داخلي بحد رفيع، ثم الوصف وبيانات صغيرة.
  */
-export function WorkspaceCard({ workspace, now, onEdit, onDuplicate, onDelete }: WorkspaceCardProps) {
+export function WorkspaceCard({ workspace, now, onEdit, onDuplicate, onExport, onExportViewer, onDelete }: WorkspaceCardProps) {
   const cardRef = useRef<HTMLElement>(null)
   useSpotlight(cardRef)
   const style = { '--ws': WORKSPACE_COLORS[workspace.color].hex } as CSSProperties
@@ -29,6 +32,8 @@ export function WorkspaceCard({ workspace, now, onEdit, onDuplicate, onDelete }:
   const menuItems: MenuItem[] = [
     { id: 'edit', label: 'Rename & customize', icon: <Pencil className="size-4" />, onSelect: () => onEdit(workspace) },
     { id: 'duplicate', label: 'Duplicate', icon: <Copy className="size-4" />, onSelect: () => onDuplicate(workspace) },
+    { id: 'export', label: 'Export', icon: <Download className="size-4" />, onSelect: () => onExport(workspace) },
+    { id: 'export-viewer', label: 'Save as read-only page', icon: <FileText className="size-4" />, onSelect: () => onExportViewer(workspace) },
     { id: 'delete', label: 'Delete', icon: <Trash2 className="size-4" />, onSelect: () => onDelete(workspace), tone: 'danger' },
   ]
 
@@ -45,12 +50,12 @@ export function WorkspaceCard({ workspace, now, onEdit, onDuplicate, onDelete }:
           <WorkspaceIcon id={workspace.icon} className="size-4" />
         </span>
         <h3 className="min-w-0 flex-1 truncate text-[0.95rem] font-semibold">
-          {/* bdi يعزل اتجاه الاسم (عربي/إنجليزي) دون أن تقفز محاذاته لليمين داخل واجهة LTR */}
+          {/* TruncatedText بدل bdi: يعزل اتجاه الاسم ويقصّ طرفه الصحيح، دون أن تقفز محاذاته لليمين داخل واجهة LTR */}
           <Link
             to={`/w/${workspace.id}`}
             className="outline-none after:absolute after:inset-0 after:rounded-[22px] after:content-['']"
           >
-            <bdi>{workspace.name}</bdi>
+            <TruncatedText>{workspace.name}</TruncatedText>
           </Link>
         </h3>
         <DropdownMenu label={`Actions for ${workspace.name}`} items={menuItems} className="relative z-10 shrink-0" />

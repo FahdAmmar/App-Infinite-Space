@@ -1,0 +1,9 @@
+# ملفات لا يحتاجها البناء على Vercel: تقلل حجم الرفع عند النشر بالأمر vercel (النشر عبر Git لا يتأثر)
+node_modules
+dist
+coverage
+e2e
+docs
+scripts
+.claude
+*.md

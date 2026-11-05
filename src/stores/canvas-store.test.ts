@@ -1,7 +1,8 @@
 import type { NodeChange } from '@xyflow/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { CanvasEdge } from '@/features/canvas/types/edges'
 import type { CanvasNode } from '@/features/canvas/types/nodes'
-import { createStickyNote, createTextCard } from '@/features/canvas/utils/node-factory'
+import { createGroup, createStickyNote, createTextCard } from '@/features/canvas/utils/node-factory'
 import { createCanvasStore, type CanvasStoreApi } from './canvas-store'
 import { selectSelectedCount, selectSelectedIds } from './canvas-selectors'
 
@@ -153,5 +154,215 @@ describe('editor state', () => {
     const other = createCanvasStore()
     store.getState().addNode(createStickyNote({ x: 0, y: 0 }, 1))
     expect(other.getState().nodes).toHaveLength(0)
+  })
+})
+
+describe('reconnectEdge', () => {
+  const setup = () => {
+    const a = createStickyNote({ x: 0, y: 0 }, 1)
+    const b = createStickyNote({ x: 400, y: 0 }, 1)
+    const c = createStickyNote({ x: 800, y: 0 }, 1)
+    store.getState().addNodes([a, b, c])
+    const connected = store.getState().connectNodes({ source: a.id, target: b.id, sourceHandle: 'right', targetHandle: 'left' })
+    if (!connected.ok) throw new Error('setup failed')
+    store.getState().updateEdge(connected.edgeId, { label: 'keeps me', lineStyle: 'dashed' })
+    return { a, b, c, edgeId: connected.edgeId }
+  }
+  const edge = (id: string) => store.getState().edges.find((e) => e.id === id)
+
+  it('moves the end to another card and keeps the style and label', () => {
+    const { a, c, edgeId } = setup()
+    expect(store.getState().reconnectEdge(edgeId, { source: a.id, target: c.id, sourceHandle: 'right', targetHandle: 'top' })).toEqual({
+      ok: true,
+      edgeId,
+    })
+    expect(edge(edgeId)).toMatchObject({ source: a.id, target: c.id, targetHandle: 'top', selected: true })
+    expect(edge(edgeId)?.data).toMatchObject({ label: 'keeps me', lineStyle: 'dashed' })
+    expect(store.getState().edges).toHaveLength(1)
+  })
+
+  it('lets an end move to another side of the same card (the edge is not its own duplicate)', () => {
+    const { a, b, edgeId } = setup()
+    const result = store.getState().reconnectEdge(edgeId, { source: a.id, target: b.id, sourceHandle: 'bottom', targetHandle: 'bottom' })
+    expect(result.ok).toBe(true)
+    expect(edge(edgeId)).toMatchObject({ sourceHandle: 'bottom', targetHandle: 'bottom' })
+  })
+
+  it('refuses a move that would duplicate another connection, and changes nothing', () => {
+    const { a, b, c, edgeId } = setup()
+    const second = store.getState().connectNodes({ source: a.id, target: c.id, sourceHandle: 'right', targetHandle: 'left' })
+    expect(second.ok).toBe(true)
+    const before = edge(edgeId)
+    const result = store.getState().reconnectEdge(edgeId, { source: a.id, target: c.id, sourceHandle: 'right', targetHandle: 'left' })
+    expect(result).toMatchObject({ ok: false, reason: expect.stringContaining('already connected') })
+    expect(edge(edgeId)).toBe(before)
+    expect(b.id).toBeTruthy()
+  })
+
+  it.each([
+    ['onto itself', (a: string) => ({ source: a, target: a })],
+    ['to nothing', () => ({ source: null, target: null })],
+  ])('refuses a move %s', (_label, make) => {
+    const { a, edgeId } = setup()
+    const connection = { sourceHandle: null, targetHandle: null, ...make(a.id) } as Parameters<ReturnType<typeof store.getState>['reconnectEdge']>[1]
+    expect(store.getState().reconnectEdge(edgeId, connection).ok).toBe(false)
+  })
+
+  it('refuses a group as an end', () => {
+    const { a, edgeId } = setup()
+    const group = createGroup({ x: 0, y: 400 }, 1)
+    store.getState().addNode(group)
+    expect(store.getState().reconnectEdge(edgeId, { source: a.id, target: group.id, sourceHandle: null, targetHandle: null }).ok).toBe(false)
+  })
+
+  it('reports a connection that no longer exists', () => {
+    const { a, b } = setup()
+    expect(store.getState().reconnectEdge('gone', { source: a.id, target: b.id, sourceHandle: null, targetHandle: null })).toMatchObject({ ok: false })
+  })
+
+  it('keeps the old handles when the new connection names an unknown side', () => {
+    const { a, c, edgeId } = setup()
+    store.getState().reconnectEdge(edgeId, { source: a.id, target: c.id, sourceHandle: 'weird', targetHandle: null })
+    expect(edge(edgeId)).toMatchObject({ sourceHandle: 'right', targetHandle: 'left' })
+  })
+})
+
+describe('pasteItems', () => {
+  const pasted = () => ({
+    nodes: [
+      { ...createStickyNote({ x: 0, y: 0 }, 1), id: 'p1', position: { x: 10, y: 10 } },
+      { ...createStickyNote({ x: 0, y: 0 }, 1), id: 'p2', position: { x: 400, y: 10 } },
+    ],
+    edges: [
+      {
+        id: 'pe',
+        type: 'connection',
+        source: 'p1',
+        target: 'p2',
+        sourceHandle: 'right',
+        targetHandle: 'left',
+        data: { curve: 'curved', lineStyle: 'solid', arrow: 'end', color: 'gradient', label: '' },
+      },
+    ] as CanvasEdge[],
+  })
+
+  it('adds the cards and their connection, selects only the new cards', () => {
+    const existing = createStickyNote({ x: 900, y: 0 }, 1)
+    store.getState().addNode(existing)
+    const ids = store.getState().pasteItems(pasted())
+    expect(ids).toEqual(['p1', 'p2'])
+    expect(selectSelectedIds(store.getState()).sort()).toEqual(['p1', 'p2'])
+    expect(byId(existing.id)?.selected).toBe(false)
+    expect(store.getState().edges.map((e) => e.id)).toEqual(['pe'])
+  })
+
+  it('is one undo step', () => {
+    store.getState().pasteItems(pasted())
+    store.getState().undo()
+    expect(nodes()).toHaveLength(0)
+    expect(store.getState().edges).toHaveLength(0)
+  })
+
+  it('adds nothing when the canvas has no room for the cards', () => {
+    const small = createCanvasStore({ limits: { maxNodes: 1, maxEdges: 10 } })
+    expect(small.getState().pasteItems(pasted())).toEqual([])
+    expect(small.getState().nodes).toHaveLength(0)
+  })
+
+  it('adds nothing when there is no room for the connections', () => {
+    const tight = createCanvasStore({ limits: { maxNodes: 10, maxEdges: 0 } })
+    expect(tight.getState().pasteItems(pasted())).toEqual([])
+  })
+
+  it('ignores an empty paste', () => {
+    expect(store.getState().pasteItems({ nodes: [], edges: [] })).toEqual([])
+  })
+
+  it('a pasted card that lands inside an existing group joins it', () => {
+    const frame = { ...createGroup({ x: 0, y: 0 }, 1), id: 'frame', position: { x: 0, y: 0 } }
+    store.getState().addNode(frame)
+    const card = { ...createStickyNote({ x: 0, y: 0 }, 1), id: 'in', position: { x: 40, y: 80 } }
+    store.getState().pasteItems({ nodes: [card], edges: [] })
+    expect(byId('in')?.parentId).toBe('frame')
+  })
+})
+
+describe('undo of reconnectEdge', () => {
+  it('restores the previous end in one step', async () => {
+    const a = createStickyNote({ x: 0, y: 0 }, 1)
+    const b = createStickyNote({ x: 400, y: 0 }, 1)
+    const c = createStickyNote({ x: 800, y: 0 }, 1)
+    store.getState().addNodes([a, b, c])
+    const made = store.getState().connectNodes({ source: a.id, target: b.id, sourceHandle: 'right', targetHandle: 'left' })
+    if (!made.ok) throw new Error('setup')
+    // التاريخ يجمع التعديلات المتزامنة في خطوة واحدة؛ ننتظر كي تكون إعادة التوصيل خطوتها الخاصة
+    await Promise.resolve()
+    store.getState().reconnectEdge(made.edgeId, { source: a.id, target: c.id, sourceHandle: 'right', targetHandle: 'left' })
+    store.getState().undo()
+    expect(store.getState().edges.find((e) => e.id === made.edgeId)?.target).toBe(b.id)
+  })
+})
+
+describe('moveNodes', () => {
+  it('moves several cards in one undo step', async () => {
+    const a = createStickyNote({ x: 0, y: 0 }, 1)
+    const b = createStickyNote({ x: 500, y: 0 }, 1)
+    store.getState().addNodes([a, b])
+    await Promise.resolve()
+    store.getState().moveNodes([
+      { id: a.id, position: { x: 10, y: 20 } },
+      { id: b.id, position: { x: 30, y: 40 } },
+    ])
+    expect(byId(a.id)?.position).toEqual({ x: 10, y: 20 })
+    expect(byId(b.id)?.position).toEqual({ x: 30, y: 40 })
+    store.getState().undo()
+    expect(byId(a.id)?.position).toEqual(a.position)
+    expect(byId(b.id)?.position).toEqual(b.position)
+  })
+
+  it('does nothing for an empty list and ignores unknown ids', () => {
+    const a = createStickyNote({ x: 0, y: 0 }, 1)
+    store.getState().addNode(a)
+    const before = nodes()
+    store.getState().moveNodes([])
+    expect(nodes()).toBe(before)
+    store.getState().moveNodes([{ id: 'ghost', position: { x: 1, y: 1 } }])
+    expect(byId(a.id)?.position).toEqual(a.position)
+  })
+
+  it('re-evaluates group membership after moving', () => {
+    const frame = { ...createGroup({ x: 0, y: 0 }, 1), id: 'frame', position: { x: 0, y: 0 } }
+    const card = { ...createStickyNote({ x: 0, y: 0 }, 1), id: 'c', position: { x: 2000, y: 2000 } }
+    store.getState().addNodes([frame, card])
+    expect(byId('c')?.parentId).toBeUndefined()
+    store.getState().moveNodes([{ id: 'c', position: { x: 40, y: 80 } }])
+    expect(byId('c')?.parentId).toBe('frame')
+  })
+})
+
+describe('reorderLayers', () => {
+  it('changes the drawing order, is one undo step, and survives a save and load', async () => {
+    const { serializeCanvas, deserializeCanvas } = await import('@/features/canvas/persistence/canvas-codec')
+    const a = createStickyNote({ x: 0, y: 0 }, 1)
+    const b = createStickyNote({ x: 100, y: 0 }, 1)
+    const c = createStickyNote({ x: 200, y: 0 }, 1)
+    store.getState().addNodes([a, b, c])
+    await Promise.resolve()
+    store.getState().reorderLayers([a.id], 'front')
+    expect(nodes().map((n) => n.id)).toEqual([b.id, c.id, a.id])
+
+    const reloaded = deserializeCanvas(serializeCanvas(nodes(), store.getState().edges, { x: 0, y: 0, zoom: 1 }), 1)
+    expect(reloaded.nodes.map((n) => n.id)).toEqual([b.id, c.id, a.id])
+
+    store.getState().undo()
+    expect(nodes().map((n) => n.id)).toEqual([a.id, b.id, c.id])
+  })
+
+  it('does nothing (and records nothing) when the order would not change', () => {
+    const a = createStickyNote({ x: 0, y: 0 }, 1)
+    store.getState().addNode(a)
+    const before = nodes()
+    store.getState().reorderLayers([a.id], 'front')
+    expect(nodes()).toBe(before)
   })
 })

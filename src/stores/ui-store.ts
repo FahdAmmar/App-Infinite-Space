@@ -3,7 +3,9 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import { createId } from '@/lib/id'
 import type { WorkspaceSortKey } from '@/features/workspaces/types/workspace'
 
-export type Theme = 'dark' | 'light'
+import { isThemeMode, resolveTheme, systemPrefersDark, type Theme, type ThemeMode } from '@/lib/theme'
+
+export type { Theme, ThemeMode }
 export type ToastKind = 'success' | 'error' | 'info'
 
 export interface Toast {
@@ -13,15 +15,33 @@ export interface Toast {
 }
 
 interface UiState {
+  /** السمة المرسومة الآن (تُشتق من themeMode وتفضيل النظام) */
   theme: Theme
+  /** تفضيل المستخدم: داكن أو فاتح أو تلقائي (يتبع النظام) */
+  themeMode: ThemeMode
+  /** تباين عالٍ: حدود وخطوط أوضح للقراءة، فوق السمة الحالية */
+  highContrast: boolean
+  /** قائمة التحقق الأولى على اللوحة: أُغلقت يدوياً؟ (تفضيل عام لكل المساحات) */
+  checklistDismissed: boolean
   workspaceSort: WorkspaceSortKey
   /** مؤثر الخلفية الزخرفي (Three.js) في لوحة التحكم؛ اختياري ويمكن إيقافه */
   backgroundEffect: boolean
+  /** محاذاة تحريك البطاقات إلى شبكة نقاط الخلفية (تفضيل عام لكل المساحات) */
+  snapToGrid: boolean
+  /** تصغير الصور الكبيرة وإعادة ترميزها WebP عند إضافتها (يوفر التخزين وحجم التصدير)؛ يمكن إيقافه للاحتفاظ بالأصل */
+  compressImages: boolean
   toasts: Toast[]
   setTheme: (theme: Theme) => void
   toggleTheme: () => void
+  setThemeMode: (mode: ThemeMode) => void
+  /** يعكس تغيّر تفضيل النظام على السمة المرسومة؛ لا أثر له إلا في الوضع التلقائي */
+  syncSystemTheme: (systemDark: boolean) => void
+  setHighContrast: (enabled: boolean) => void
+  dismissChecklist: () => void
   setWorkspaceSort: (sort: WorkspaceSortKey) => void
   setBackgroundEffect: (enabled: boolean) => void
+  setSnapToGrid: (enabled: boolean) => void
+  setCompressImages: (enabled: boolean) => void
   pushToast: (kind: ToastKind, message: string) => void
   dismissToast: (id: string) => void
 }
@@ -37,13 +57,30 @@ export const useUiStore = create<UiState>()(
   persist(
     (set) => ({
       theme: 'dark',
+      themeMode: 'dark',
+      highContrast: false,
+      checklistDismissed: false,
       workspaceSort: 'modified',
       backgroundEffect: true,
+      snapToGrid: false,
+      compressImages: true,
       toasts: [],
-      setTheme: (theme) => set({ theme }),
-      toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
+      // اختيار سمة صريحة يلغي الوضع التلقائي
+      setTheme: (theme) => set({ theme, themeMode: theme }),
+      toggleTheme: () =>
+        set((state) => {
+          const next: Theme = state.theme === 'dark' ? 'light' : 'dark'
+          return { theme: next, themeMode: next }
+        }),
+      setThemeMode: (themeMode) => set({ themeMode, theme: resolveTheme(themeMode, systemPrefersDark()) }),
+      syncSystemTheme: (systemDark) =>
+        set((state) => (state.themeMode === 'system' ? { theme: resolveTheme('system', systemDark) } : state)),
+      setHighContrast: (highContrast) => set({ highContrast }),
+      dismissChecklist: () => set({ checklistDismissed: true }),
       setWorkspaceSort: (workspaceSort) => set({ workspaceSort }),
       setBackgroundEffect: (backgroundEffect) => set({ backgroundEffect }),
+      setSnapToGrid: (snapToGrid) => set({ snapToGrid }),
+      setCompressImages: (compressImages) => set({ compressImages }),
       pushToast: (kind, message) =>
         set((state) => {
           // نمنع تكدّس نفس الرسالة (مثلاً تكرار فشل الحفظ)
@@ -59,23 +96,40 @@ export const useUiStore = create<UiState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         theme: state.theme,
+        themeMode: state.themeMode,
+        highContrast: state.highContrast,
+        checklistDismissed: state.checklistDismissed,
         workspaceSort: state.workspaceSort,
         backgroundEffect: state.backgroundEffect,
+        snapToGrid: state.snapToGrid,
+        compressImages: state.compressImages,
       }),
       // قيم localStorage غير موثوقة: نقبل فقط القيم المعروفة ونرجع للافتراضي غير ذلك
       merge: (persisted, current) => {
         const saved = typeof persisted === 'object' && persisted !== null ? persisted : {}
         const theme = 'theme' in saved ? saved.theme : undefined
+        const savedMode = 'themeMode' in saved ? saved.themeMode : undefined
+        const contrast = 'highContrast' in saved ? saved.highContrast : undefined
+        const dismissed = 'checklistDismissed' in saved ? saved.checklistDismissed : undefined
         const sort = 'workspaceSort' in saved ? saved.workspaceSort : undefined
         const effect = 'backgroundEffect' in saved ? saved.backgroundEffect : undefined
+        const snap = 'snapToGrid' in saved ? saved.snapToGrid : undefined
+        const compress = 'compressImages' in saved ? saved.compressImages : undefined
+        const themeMode: ThemeMode = isThemeMode(savedMode) ? savedMode : theme === 'light' || theme === 'dark' ? theme : current.themeMode
         return {
           ...current,
-          theme: theme === 'light' || theme === 'dark' ? theme : current.theme,
+          // الإصدارات السابقة حفظت theme فقط: نعتبره تفضيلاً صريحاً. القيم المجهولة ترجع للافتراضي
+          themeMode,
+          theme: resolveTheme(themeMode, systemPrefersDark()),
+          highContrast: typeof contrast === 'boolean' ? contrast : current.highContrast,
+          checklistDismissed: typeof dismissed === 'boolean' ? dismissed : current.checklistDismissed,
           workspaceSort:
             typeof sort === 'string' && SORT_KEYS.includes(sort as WorkspaceSortKey)
               ? (sort as WorkspaceSortKey)
               : current.workspaceSort,
           backgroundEffect: typeof effect === 'boolean' ? effect : current.backgroundEffect,
+          snapToGrid: typeof snap === 'boolean' ? snap : current.snapToGrid,
+          compressImages: typeof compress === 'boolean' ? compress : current.compressImages,
         }
       },
     },

@@ -54,6 +54,9 @@ describe('HybridStorageAdapter (IndexedDB available)', () => {
       put: () => Promise.resolve(),
       delete: () => Promise.resolve(),
       putBackup: () => Promise.reject(new Error('full')),
+      listBackups: () => Promise.resolve([]),
+      getBackup: () => Promise.resolve(undefined),
+      deleteBackup: () => Promise.resolve(),
     }
     const loaded = await new HybridStorageAdapter(new LocalStorageAdapter(new FakeKv()), failing).loadCanvas('w')
     expect(loaded).toEqual({ canvas: null, unreadable: true, backupKey: null })
@@ -77,6 +80,9 @@ describe('HybridStorageAdapter (IndexedDB available)', () => {
       put: () => Promise.reject(new DOMException('full', 'QuotaExceededError')),
       delete: () => Promise.reject(new Error('x')),
       putBackup: () => Promise.resolve(),
+      listBackups: () => Promise.resolve([]),
+      getBackup: () => Promise.resolve(undefined),
+      deleteBackup: () => Promise.resolve(),
     }
     const adapter = new HybridStorageAdapter(new LocalStorageAdapter(new FakeKv()), quota)
     await expect(adapter.saveCanvas('w', canvas)).rejects.toMatchObject({ name: 'StorageError', reason: 'quota' })

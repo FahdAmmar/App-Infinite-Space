@@ -1,9 +1,11 @@
 import type { XYPosition } from '@xyflow/react'
 import { imageStorage } from '@/services/persistence'
+import { useUiStore } from '@/stores/ui-store'
 import type { ImageStorage } from '@/services/persistence/image-storage'
 import { IMAGE_LIMITS, MAX_FILES_PER_DROP } from '../utils/constants'
 import { createImageCard } from '../utils/node-factory'
 import type { ImageCard } from '../types/nodes'
+import { compressImage, type CompressedImage } from './image-compress'
 import { readImageDimensions, type ImageDimensions } from './image-decode'
 import { fitImageWidth, validatePixelCount, validateImageFile } from './image-validation'
 
@@ -21,7 +23,12 @@ export interface ImageIntake {
 export interface ImageDeps {
   storage?: ImageStorage
   readDimensions?: (blob: Blob) => Promise<ImageDimensions>
+  /** يضغط الصورة إن استحقت (null = تُخزَّن كما هي). الافتراضي يحترم إعداد «ضغط الصور الجديدة». */
+  compress?: (file: File, dimensions: ImageDimensions) => Promise<CompressedImage | null>
 }
+
+const defaultCompress = (file: File, dimensions: ImageDimensions) =>
+  useUiStore.getState().compressImages ? compressImage(file, dimensions) : Promise.resolve(null)
 
 /** يفحص ملفاً واحداً ويحفظه؛ يرمي Error برسالة مقروءة للمستخدم عند أي فشل. */
 export async function intakeImageFile(file: File, deps: ImageDeps = {}): Promise<ImageIntake> {
@@ -40,13 +47,21 @@ export async function intakeImageFile(file: File, deps: ImageDeps = {}): Promise
   const pixels = validatePixelCount(file.name, dimensions.width, dimensions.height)
   if (!pixels.ok) throw new Error(pixels.message)
 
+  // الضغط تحسين لا شرط: أي فشل فيه (أو رفض من المعيار) يعني تخزين الأصل كما هو، فلا نخسر الصورة بسببه
+  const compressed = await (deps.compress ?? defaultCompress)(file, dimensions).catch(() => null)
+
   let imageId: string
   try {
-    imageId = await storage.save(file)
+    imageId = await storage.save(compressed?.blob ?? file)
   } catch {
     throw new Error(`"${file.name}" could not be stored in this browser.`)
   }
-  return { imageId, fileName: file.name, naturalWidth: dimensions.width, naturalHeight: dimensions.height }
+  return {
+    imageId,
+    fileName: file.name,
+    naturalWidth: compressed?.width ?? dimensions.width,
+    naturalHeight: compressed?.height ?? dimensions.height,
+  }
 }
 
 export interface AddImagesResult {

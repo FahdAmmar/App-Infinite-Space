@@ -16,7 +16,7 @@ export function useCanvasShortcuts(commands: CanvasCommands): void {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing) return
       if (isTypingTarget(event.target)) return
-      if (document.querySelector('dialog[open]')) return
+      if (document.querySelector('dialog[open], [role="menu"]')) return
 
       const state = store.getState()
       if (state.editingNodeId !== null) return
@@ -29,6 +29,17 @@ export function useCanvasShortcuts(commands: CanvasCommands): void {
         if (key === 'd') {
           event.preventDefault() // يمنع "إضافة للمفضلة" في المتصفح
           commands.duplicateSelection()
+        } else if ((key === 'c' || key === 'x') && state.nodes.some((node) => node.selected)) {
+          // نعالج النسخ والقص فقط حين يوجد محدد على اللوحة؛ غير ذلك يُترك للمتصفح
+          event.preventDefault()
+          if (key === 'c') commands.copySelection()
+          else commands.cutSelection()
+        } else if (key === 'k') {
+          event.preventDefault() // بدل «تركيز شريط عنوان المتصفح» في بعض المتصفحات
+          state.setPaletteOpen(true)
+        } else if (key === 'f') {
+          event.preventDefault() // بدل «بحث المتصفح»: نبحث في بطاقات اللوحة
+          state.setFindOpen(true)
         } else if (key === 'a') {
           event.preventDefault()
           state.selectAll()
@@ -91,9 +102,41 @@ export function useCanvasShortcuts(commands: CanvasCommands): void {
           event.preventDefault()
           void commands.pickAndAddImages()
           break
+        case 'f':
+        case 'F': {
+          // التركيز على فرع البطاقة المحددة؛ ضغطة ثانية (أو مع تحديد غيرها) تنقل التركيز أو تلغيه
+          const ids = selectSelectedIds(state)
+          const only = ids.length === 1 ? state.nodes.find((node) => node.id === ids[0]) : undefined
+          if (only && only.type !== 'group') {
+            event.preventDefault()
+            state.setFocusId(state.focusId === only.id ? null : only.id)
+          } else if (state.focusId !== null) {
+            event.preventDefault()
+            state.setFocusId(null)
+          }
+          break
+        }
+        case 'o':
+        case 'O':
+          event.preventDefault()
+          state.setOutlineOpen(!state.outlineOpen)
+          break
+        case 'p':
+        case 'P':
+          event.preventDefault()
+          commands.startPresentation()
+          break
         case 'c':
         case 'C':
           state.setTool('connect')
+          break
+        case ']':
+          event.preventDefault()
+          state.reorderLayers(selectSelectedIds(state), 'front')
+          break
+        case '[':
+          event.preventDefault()
+          state.reorderLayers(selectSelectedIds(state), 'back')
           break
         case 'Delete':
         case 'Backspace':
@@ -132,4 +175,21 @@ export function useCanvasShortcuts(commands: CanvasCommands): void {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [store, commands])
+
+  // Esc يمسح تصفية الوسم حين لا يوجد تحديد. نلتقطه في مرحلة الالتقاط (قبل React Flow): حين يكون التركيز على بطاقة
+  // يلغي React Flow تحديدها بنفسه أولاً، فلو انتظرنا مرحلة الفقاعة لرأينا «لا تحديد» ومسحنا التصفية في الضغطة نفسها.
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing) return
+      if (isTypingTarget(event.target) || document.querySelector('dialog[open], [role="menu"]')) return
+      const state = store.getState()
+      if ((state.tagFilter === null && state.focusId === null) || state.tool !== 'select' || state.editingNodeId !== null) return
+      if (state.nodes.some((node) => node.selected) || state.edges.some((edge) => edge.selected)) return // التحديد أولاً
+      // ضغطة واحدة تلغي واحداً: التركيز أولاً ثم الوسم
+      if (state.focusId !== null) state.setFocusId(null)
+      else state.setTagFilter(null)
+    }
+    window.addEventListener('keydown', handleEscape, true)
+    return () => window.removeEventListener('keydown', handleEscape, true)
+  }, [store])
 }

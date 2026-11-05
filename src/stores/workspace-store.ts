@@ -20,6 +20,11 @@ interface WorkspaceState {
   updateWorkspace: (id: string, patch: Partial<WorkspaceInput>) => void
   duplicateWorkspace: (id: string) => Promise<WorkspaceMeta | null>
   deleteWorkspace: (id: string) => Promise<void>
+  /**
+   * يضيف مساحات جاهزة (استيراد أو استرجاع نسخة احتياطية) ويحفظ القائمة. المعرّفات الموجودة تُتجاهل.
+   * إن فشل الحفظ يُتراجع عن الإضافة في الذاكرة ويعيد false، فلا تظهر مساحات ستختفي عند إعادة التحميل.
+   */
+  adoptWorkspaces: (workspaces: WorkspaceMeta[]) => Promise<boolean>
   markOpened: (id: string) => void
   /**
    * يُستدعى بعد حفظ اللوحة: يحدّث عدد العناصر والمعاينة (لبطاقة لوحة التحكم)، وإن تغيّر المحتوى (لا العرض فقط)
@@ -181,6 +186,19 @@ export function createWorkspaceStore(adapter: StorageAdapter, options: { persist
         } catch {
           notify('error', "The workspace was deleted, but some of its data couldn't be cleared from browser storage.")
         }
+      },
+
+      adoptWorkspaces: async (incoming) => {
+        const existing = new Set(get().workspaces.map((workspace) => workspace.id))
+        const fresh = incoming.filter((workspace) => !existing.has(workspace.id))
+        if (fresh.length === 0) return true
+
+        set((state) => ({ workspaces: [...fresh, ...state.workspaces] }))
+        if (await persist()) return true
+
+        const added = new Set(fresh.map((workspace) => workspace.id))
+        set((state) => ({ workspaces: state.workspaces.filter((workspace) => !added.has(workspace.id)) }))
+        return false
       },
 
       markOpened: (id) => {

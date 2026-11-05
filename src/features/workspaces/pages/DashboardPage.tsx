@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { Plus, SearchX } from 'lucide-react'
+import { DatabaseBackup, Plus, SearchX } from 'lucide-react'
 import { DotGridBackground } from '@/components/layout/DotGridBackground'
 import { Button } from '@/components/ui/Button'
 import { Logo } from '@/components/ui/Logo'
@@ -9,17 +9,24 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { useNow } from '@/hooks/useNow'
 import { useUiStore } from '@/stores/ui-store'
 import { useWorkspaceStore } from '@/stores/workspace-store'
+import { exportViewerToFile, exportWorkspaceToFile } from '../actions/transfer-actions'
+import { DataDialog } from '../components/data/DataDialog'
 import { DeleteWorkspaceDialog } from '../components/DeleteWorkspaceDialog'
 import { EmptyState } from '../components/EmptyState'
+import { CardSearchResults } from '../components/CardSearchResults'
 import { RecentList } from '../components/RecentList'
+import { useCardSearch } from '../hooks/useCardSearch'
 import { SearchField } from '../components/SearchField'
 import { SortSelect } from '../components/SortSelect'
 import { WorkspaceCard } from '../components/WorkspaceCard'
 import { WorkspaceFormDialog } from '../components/WorkspaceFormDialog'
+import { createWorkspaceFromTemplate } from '../actions/transfer-actions'
+import { getTemplate, type TemplateId } from '../templates/template-catalog'
 import { BackgroundEffect } from '../effects/BackgroundEffect'
 import { EffectsToggle } from '../effects/EffectsToggle'
 import { useDashboardEntrance } from '../hooks/useDashboardEntrance'
 import { useNewCardEnter } from '../hooks/useNewCardEnter'
+import { useStorageWarning } from '../hooks/useStorageWarning'
 import type { WorkspaceInput, WorkspaceMeta } from '../types/workspace'
 import { filterWorkspaces, selectRecentWorkspaces, sortWorkspaces } from '../utils/query'
 
@@ -46,14 +53,17 @@ export function DashboardPage() {
   const [query, setQuery] = useState('')
   const [formState, setFormState] = useState<FormState>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [dataOpen, setDataOpen] = useState(false)
 
   useDashboardEntrance(rootRef, status === 'ready')
+  useStorageWarning(status === 'ready')
 
   // الاشتقاقات تُحسب بـ useMemo (وليس داخل selector) لأن selector يعيد مصفوفة جديدة
   // في كل مرة يسبب إعادة رسم لا نهائية مع Zustand 5
   const visible = useMemo(() => sortWorkspaces(filterWorkspaces(workspaces, query), sort), [workspaces, query, sort])
   const recent = useMemo(() => selectRecentWorkspaces(workspaces), [workspaces])
 
+  const { hits: cardHits, searching: searchingCards } = useCardSearch(workspaces, query)
   const visibleIds = useMemo(() => visible.map((w) => w.id), [visible])
   useNewCardEnter(listRef, visibleIds, status === 'ready')
 
@@ -64,10 +74,19 @@ export function DashboardPage() {
   // الحالة الفارغة تحمل زر إنشاء خاصاً بها، والبحث بلا معنى دون مساحات؛ نخفيهما من الشريط حينها
   const hasWorkspaces = status === 'ready' && workspaces.length > 0
 
-  const handleSubmit = (input: WorkspaceInput) => {
+  const handleSubmit = async (input: WorkspaceInput, template: TemplateId) => {
     if (formState?.mode === 'edit') {
       updateWorkspace(formState.id, input)
       setFormState(null)
+      return
+    }
+    if (template !== 'blank') {
+      // من قالب: تُبنى البطاقات وتُحفظ أولاً؛ الحوار يبقى مفتوحاً إن فشل ذلك (والرسالة تشرح السبب) فلا يضيع ما كُتب
+      const created = await createWorkspaceFromTemplate(input, template)
+      if (!created) return
+      setFormState(null)
+      pushToast('success', `Created “${created.name}” from the ${getTemplate(template).label} template.`)
+      navigate(`/w/${created.id}`)
       return
     }
     const created = createWorkspace(input)
@@ -106,6 +125,17 @@ export function DashboardPage() {
           )}
           <div className="ml-auto flex items-center gap-2">
             <EffectsToggle className="hidden md:inline-flex" />
+            {/* متاح دائماً (حتى بلا مساحات): الاستيراد من ملف هو طريق استعادة العمل بعد مسح بيانات المتصفح */}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setDataOpen(true)}
+              aria-label="Data & backup"
+              className="h-10 px-3 sm:px-4"
+            >
+              <DatabaseBackup className="size-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Data</span>
+            </Button>
             <ThemeToggle />
             {hasWorkspaces && (
               <Button variant="primary" size="sm" onClick={() => setFormState({ mode: 'create' })} className="h-10">
@@ -133,7 +163,7 @@ export function DashboardPage() {
         </section>
 
         {status === 'loading' ? (
-          <div role="status" aria-busy="true" className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div role="status" aria-busy="true" className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <span className="sr-only">Loading your workspaces…</span>
             {[0, 1, 2].map((key) => (
               <div key={key} aria-hidden="true" className="h-72 animate-pulse rounded-[22px] border border-line bg-surface" />
@@ -145,7 +175,8 @@ export function DashboardPage() {
           </div>
         ) : (
           <>
-            {!isSearching && <RecentList workspaces={recent} now={now} />}
+            {/* حين تظهر كل المساحات في «الأحدث» يكرر الصف القائمة التي تحته فلا نعرضه */}
+            {!isSearching && workspaces.length > recent.length && <RecentList workspaces={recent} now={now} />}
 
             <section aria-labelledby="all-heading" className="space-y-5">
               <div data-reveal="hero" className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
@@ -168,7 +199,7 @@ export function DashboardPage() {
                   </Button>
                 </div>
               ) : (
-                <ul ref={listRef} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                <ul ref={listRef} className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                   {visible.map((workspace) => (
                     <li key={workspace.id} data-reveal="card" data-workspace-id={workspace.id}>
                       <WorkspaceCard
@@ -176,6 +207,8 @@ export function DashboardPage() {
                         now={now}
                         onEdit={(w) => setFormState({ mode: 'edit', id: w.id })}
                         onDuplicate={(w) => void handleDuplicate(w)}
+                        onExport={(w) => void exportWorkspaceToFile(w)}
+                        onExportViewer={(w) => void exportViewerToFile(w)}
                         onDelete={(w) => setDeletingId(w.id)}
                       />
                     </li>
@@ -183,6 +216,8 @@ export function DashboardPage() {
                 </ul>
               )}
             </section>
+
+            {isSearching && <CardSearchResults hits={cardHits} searching={searchingCards} query={query} />}
           </>
         )}
       </main>
@@ -192,8 +227,9 @@ export function DashboardPage() {
         mode={formState?.mode ?? 'create'}
         workspace={editing}
         onClose={() => setFormState(null)}
-        onSubmit={handleSubmit}
+        onSubmit={(input, template) => void handleSubmit(input, template)}
       />
+      <DataDialog open={dataOpen} onClose={() => setDataOpen(false)} />
       <DeleteWorkspaceDialog
         workspace={deleting}
         onCancel={() => setDeletingId(null)}

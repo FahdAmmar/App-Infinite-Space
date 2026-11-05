@@ -14,6 +14,8 @@ import { useEditorEntrance } from '../hooks/useEditorEntrance'
 import { useLoadedCanvas } from '../persistence/useLoadedCanvas'
 import { CanvasEditor } from '../components/CanvasEditor'
 import { EditorTopBar } from '../components/EditorTopBar'
+import { ExternalChangeBanner } from '../components/ExternalChangeBanner'
+import { CommandPalette } from '../components/CommandPalette'
 import { ShortcutsDialog } from '../components/ShortcutsDialog'
 
 /** حالات لا يوجد فيها محرر: التحميل أو مساحة غير موجودة. */
@@ -99,7 +101,7 @@ function LoadedEditor({ workspace }: { workspace: WorkspaceMeta }) {
     // key: عند الانتقال من مساحة لأخرى يُبنى مخزن اللوحة والمزوّد من جديد (لا تسرّب بين المساحات)
     <CanvasStoreProvider key={workspace.id} initial={{ nodes: loaded.nodes, edges: loaded.edges, viewport: loaded.viewport }}>
       <ReactFlowProvider>
-        <CanvasPersistenceProvider workspaceId={workspace.id}>
+        <CanvasPersistenceProvider workspaceId={workspace.id} onReloadLatest={() => setAttempt((n) => n + 1)}>
           <div ref={rootRef} className="relative h-dvh overflow-hidden bg-bg">
             <a
               href="#canvas-main"
@@ -113,6 +115,7 @@ function LoadedEditor({ workspace }: { workspace: WorkspaceMeta }) {
             </a>
             {/* الشريط قبل اللوحة في DOM ليصل إليه مستخدم لوحة المفاتيح أولاً، ويظهر فوقها بالتموضع المطلق */}
             <EditorTopBar workspace={workspace} />
+            <ExternalChangeBanner />
             <main id="canvas-main" tabIndex={-1} className="absolute inset-0 outline-none" aria-label="Canvas">
               {/* الاسم الظاهر بصرياً داخل حبّة تفاعلية؛ هذا العنوان المخفي يمنح الصفحة بنية دلالية لقارئات الشاشة */}
               <h1 className="sr-only">
@@ -122,6 +125,7 @@ function LoadedEditor({ workspace }: { workspace: WorkspaceMeta }) {
             </main>
           </div>
           <ShortcutsDialog />
+          <CommandPalette workspaceId={workspace.id} />
         </CanvasPersistenceProvider>
       </ReactFlowProvider>
     </CanvasStoreProvider>

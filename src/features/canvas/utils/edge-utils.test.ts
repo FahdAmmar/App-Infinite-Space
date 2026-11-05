@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CanvasNode } from '../types/nodes'
-import { checkConnection, createEdge, edgeFromConnection, isHandleSide, pickHandleSides } from './edge-utils'
+import { checkConnection, createEdge, edgeFromConnection, isHandleSide, pickHandleSides, rejectedDropReason } from './edge-utils'
 import { createGroup, createStickyNote } from './node-factory'
 
 const at = (id: string, x: number, y: number): CanvasNode => ({ ...createStickyNote({ x: 0, y: 0 }, 1), id, position: { x, y } })
@@ -34,6 +34,32 @@ describe('checkConnection', () => {
     const edge = createEdge('a', 'b', 'right', 'left')
     expect(checkConnection([a, b], [edge], 'a', 'b')).toMatchObject({ ok: false })
     expect(checkConnection([a, b], [edge], 'b', 'a')).toEqual({ ok: true })
+  })
+})
+
+describe('rejectedDropReason', () => {
+  const a = at('a', 0, 0)
+  const b = at('b', 400, 0)
+  const group = { ...createGroup({ x: 0, y: 0 }, 1), id: 'g' }
+
+  it('is null when the drop makes a valid connection', () => {
+    expect(rejectedDropReason([a, b], [], 'a', 'b', 'target')).toBeNull()
+  })
+
+  it('explains a drop on the fixed card itself, whichever end is dragged', () => {
+    expect(rejectedDropReason([a, b], [], 'a', 'a', 'target')).toMatch(/itself/)
+    expect(rejectedDropReason([a, b], [], 'a', 'a', 'source')).toMatch(/itself/)
+  })
+
+  it('explains a drop on a group', () => {
+    expect(rejectedDropReason([a, group], [], 'a', 'g', 'target')).toMatch(/Groups/)
+  })
+
+  it('reads the dragged end as the source or the target', () => {
+    const edge = createEdge('a', 'b', 'right', 'left')
+    // السحب نحو b كهدف يكرر a→b، أما كمصدر فيصبح b→a وهو مسموح
+    expect(rejectedDropReason([a, b], [edge], 'a', 'b', 'target')).toMatch(/already connected/)
+    expect(rejectedDropReason([a, b], [edge], 'a', 'b', 'source')).toBeNull()
   })
 })
 

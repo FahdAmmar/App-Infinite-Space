@@ -1,7 +1,7 @@
 import type { WorkspaceMeta } from '@/features/workspaces/types/workspace'
 import type { CanvasStore } from './indexed-db-canvas-store'
 import { isStoredCanvas, toStorageError } from './local-storage-adapter'
-import type { LoadedCanvas, LoadedWorkspaces, StorageAdapter, StoredCanvas } from './storage-adapter'
+import type { BackupInfo, LoadedCanvas, LoadedWorkspaces, StorageAdapter, StoredCanvas } from './storage-adapter'
 
 /**
  * المحوّل الفعلي للتطبيق: بيانات المساحات الصغيرة (الاسم واللون وعدد العناصر والمعاينة) في localStorage
@@ -9,6 +9,9 @@ import type { LoadedCanvas, LoadedWorkspaces, StorageAdapter, StoredCanvas } fro
  * إن لم يتوفر IndexedDB أصلاً (مثلاً متصفح قديم) تذهب اللوحات إلى المحوّل الاحتياطي (localStorage).
  * الأخطاء كلها تُحوَّل إلى StorageError بسبب مفهوم (امتلاء / حجب / غير معروف).
  */
+/** بادئة مفاتيح نسخ اللوحات الاحتياطية في IndexedDB (انظر loadCanvas). تميّزها عن نسخ localStorage. */
+const IDB_CANVAS_BACKUP_PREFIX = 'canvas-backup:'
+
 export class HybridStorageAdapter implements StorageAdapter {
   constructor(
     private readonly metadata: StorageAdapter,
@@ -74,6 +77,47 @@ export class HybridStorageAdapter implements StorageAdapter {
     if (!this.canvases) return this.metadata.deleteCanvas(workspaceId)
     try {
       await this.canvases.delete(workspaceId)
+    } catch (error) {
+      throw toStorageError(error)
+    }
+  }
+
+  async listBackups(): Promise<BackupInfo[]> {
+    const local = await this.metadata.listBackups()
+    if (!this.canvases) return local
+    try {
+      const stored = await this.canvases.listBackups()
+      const fromIdb = stored
+        .filter((item) => item.key.startsWith(IDB_CANVAS_BACKUP_PREFIX))
+        .map((item): BackupInfo => ({
+          key: item.key,
+          kind: 'canvas',
+          workspaceId: item.key.slice(IDB_CANVAS_BACKUP_PREFIX.length),
+          createdAt: null,
+          sizeBytes: item.sizeBytes,
+        }))
+      return [...local, ...fromIdb]
+    } catch {
+      // IndexedDB لا يُقرأ: نعرض نسخ localStorage على الأقل بدل إخفاء الشاشة كلها
+      return local
+    }
+  }
+
+  async readBackup(key: string): Promise<unknown> {
+    if (!key.startsWith(IDB_CANVAS_BACKUP_PREFIX)) return this.metadata.readBackup(key)
+    if (!this.canvases) return null
+    try {
+      return (await this.canvases.getBackup(key)) ?? null
+    } catch (error) {
+      throw toStorageError(error)
+    }
+  }
+
+  async deleteBackup(key: string): Promise<void> {
+    if (!key.startsWith(IDB_CANVAS_BACKUP_PREFIX)) return this.metadata.deleteBackup(key)
+    if (!this.canvases) return
+    try {
+      await this.canvases.deleteBackup(key)
     } catch (error) {
       throw toStorageError(error)
     }

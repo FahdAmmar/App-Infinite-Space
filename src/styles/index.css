@@ -121,6 +121,25 @@
   --sticky-neutral-ink: #1e1e1e;
 }
 
+/* تباين عالٍ: حدود وخطوط أوضح وألوان نص أقوى فوق السمة الحالية (الألوان وحدها لا تكفي؛ الحدود تتضخم أيضاً) */
+:root[data-theme='dark'][data-contrast='high'] {
+  --c-line: #7a7a86;
+  --c-text: #ffffff;
+  --c-muted: #d0d0d8;
+  --c-accent: #c9bbff;
+  --c-dot: rgb(255 255 255 / 0.18);
+  --c-danger: #ff9aa6;
+}
+:root[data-theme='light'][data-contrast='high'] {
+  --c-bg: #ffffff;
+  --c-line: #6b6b76;
+  --c-text: #000000;
+  --c-muted: #2e2e35;
+  --c-accent: #4a2bd0;
+  --c-dot: rgb(0 0 0 / 0.2);
+  --c-danger: #a31229;
+}
+
 /* ربط المتغيرات بأدوات Tailwind: bg-surface, text-ink, border-line ... */
 @theme inline {
   --color-bg: var(--c-bg);
@@ -347,6 +366,17 @@
       height: max(100%, 44px);
       transform: translate(-50%, -50%);
     }
+  }
+}
+
+/* iOS Safari يكبّر الصفحة عند التركيز على حقل خطه أقل من 16px ولا يرجعها تلقائياً.
+   على أجهزة اللمس فقط نثبّت حقول الكتابة على 16px. :not() يرفع الخصوصية فوق أي صنف مكتوب بخط أصغر
+   (مثل خط محتوى البطاقة)، وإلا خسرت القاعدة أمام ذلك الصنف. */
+@media (pointer: coarse) {
+  input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file'], [type='button'], [type='submit']),
+  textarea:not([hidden]),
+  select:not([hidden]) {
+    font-size: 16px;
   }
 }
 
