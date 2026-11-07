@@ -12,6 +12,7 @@
 """
 import os, re, sys, tempfile
 from playwright.sync_api import sync_playwright
+from _common import patch_browser, open_add_menu
 
 URL = os.environ.get('BASE_URL', 'http://127.0.0.1:4173/')
 SHOTS = os.path.join(tempfile.mkdtemp(prefix='infinitespace-e2e8-'), 'shots')
@@ -25,7 +26,7 @@ def check(name, cond, detail=''):
 
 
 with sync_playwright() as p:
-    browser = p.chromium.launch()
+    browser = patch_browser(p.chromium.launch())
     # كتابة الحافظة تحتاج صلاحية في Chromium الرأسي؛ في المتصفح العادي تُمنح تلقائياً بعد ضغطة مفتاح
     ctx = browser.new_context(viewport={'width': 1440, 'height': 900}, color_scheme='dark', permissions=['clipboard-read', 'clipboard-write'])
     pg = ctx.new_page()
@@ -117,7 +118,7 @@ with sync_playwright() as p:
     check('the later note is on top at first', 'Over' in top_text_at(*overlap), top_text_at(*overlap))
     # العقدة المحددة تُرفع فوق غيرها أثناء التحديد (elevateNodesOnSelect)، فنلغي التحديد قبل قراءة الترتيب الحقيقي
     def deselect(): pg.mouse.click(1000, 760); pg.wait_for_timeout(200)
-    pg.mouse.click(ub['x'] + 8, ub['y'] + 8); pg.keyboard.press(']'); pg.wait_for_timeout(250); deselect()
+    pg.mouse.click(ub['x'] + 8, ub['y'] + ub['height'] - 12); pg.keyboard.press(']')  # الزاوية السفلية: شريط التحديد العائم فوق الملاحظة الأخرى ويغطي الزاوية العلوية; pg.wait_for_timeout(250); deselect()
     check('] brings the selected note to the front', 'Under' in top_text_at(*overlap), top_text_at(*overlap))
     pg.mouse.click(ub['x'] + 8, ub['y'] + 8); pg.keyboard.press('['); pg.wait_for_timeout(250); deselect()
     check('[ sends it back again', 'Over' in top_text_at(*overlap), top_text_at(*overlap))
@@ -202,7 +203,7 @@ with sync_playwright() as p:
     hb, rb = hint.bounding_box(), rail.bounding_box()
     check('the empty-canvas hint stays clear of the tool rail on a phone', hb is not None and rb is not None and hb['x'] >= rb['x'] + rb['width'], f'{hb} vs {rb}')
     for (x, y) in ((110, 260), (270, 420)):
-        mp.get_by_role('button', name=re.compile('Sticky note')).click(); mp.touchscreen.tap(x, y); mp.wait_for_timeout(300)
+        open_add_menu(mp); mp.get_by_role('button', name=re.compile('Sticky note')).click(); mp.touchscreen.tap(x, y); mp.wait_for_timeout(300)
     check('two notes are created by tapping on a phone', mp.locator('.react-flow__node').count() == 2, str(mp.locator('.react-flow__node').count()))
     # الملاحظة الجديدة تبدأ في وضع الكتابة، وفيه لا يعمل «تحديد الكل»؛ نخرج منه أولاً
     mp.keyboard.press('Escape'); mp.wait_for_timeout(200)

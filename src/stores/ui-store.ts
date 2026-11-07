@@ -8,10 +8,25 @@ import { isThemeMode, resolveTheme, systemPrefersDark, type Theme, type ThemeMod
 export type { Theme, ThemeMode }
 export type ToastKind = 'success' | 'error' | 'info'
 
+export interface ToastAction {
+  label: string
+  run: () => void
+}
+
+export interface ToastOptions {
+  /** معرّف ثابت: رسالة جديدة بنفس المعرّف تحلّ محل القديمة، ويمكن إغلاقها بالبرنامج (مثل «غير متصل») */
+  id?: string
+  /** لا تختفي وحدها (إصدار جديد جاهز، عدم اتصال)؛ تُغلق بالزر أو بالبرنامج */
+  sticky?: boolean
+  action?: ToastAction
+}
+
 export interface Toast {
   id: string
   kind: ToastKind
   message: string
+  sticky?: boolean
+  action?: ToastAction
 }
 
 interface UiState {
@@ -42,7 +57,7 @@ interface UiState {
   setBackgroundEffect: (enabled: boolean) => void
   setSnapToGrid: (enabled: boolean) => void
   setCompressImages: (enabled: boolean) => void
-  pushToast: (kind: ToastKind, message: string) => void
+  pushToast: (kind: ToastKind, message: string, options?: ToastOptions) => void
   dismissToast: (id: string) => void
 }
 
@@ -81,12 +96,21 @@ export const useUiStore = create<UiState>()(
       setBackgroundEffect: (backgroundEffect) => set({ backgroundEffect }),
       setSnapToGrid: (snapToGrid) => set({ snapToGrid }),
       setCompressImages: (compressImages) => set({ compressImages }),
-      pushToast: (kind, message) =>
+      pushToast: (kind, message, options) =>
         set((state) => {
+          const id = options?.id ?? createId()
+          // رسالة بمعرّف ثابت تحلّ محل نسختها السابقة بدل أن تتكرر
+          const others = options?.id ? state.toasts.filter((toast) => toast.id !== id) : state.toasts
           // نمنع تكدّس نفس الرسالة (مثلاً تكرار فشل الحفظ)
-          if (state.toasts.some((toast) => toast.message === message)) return state
-          const toasts = [...state.toasts, { id: createId(), kind, message }]
-          return { toasts: toasts.slice(-MAX_TOASTS) }
+          if (!options?.id && others.some((toast) => toast.message === message)) return state
+          const toast: Toast = {
+            id,
+            kind,
+            message,
+            ...(options?.sticky ? { sticky: true } : {}),
+            ...(options?.action ? { action: options.action } : {}),
+          }
+          return { toasts: [...others, toast].slice(-MAX_TOASTS) }
         }),
       dismissToast: (id) => set((state) => ({ toasts: state.toasts.filter((toast) => toast.id !== id) })),
     }),

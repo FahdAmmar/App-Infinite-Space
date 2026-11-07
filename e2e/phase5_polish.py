@@ -15,6 +15,7 @@
 import io, os, sys, tempfile
 from PIL import Image, ImageChops
 from playwright.sync_api import sync_playwright
+from _common import patch_browser, open_add_menu
 
 URL = os.environ.get('BASE_URL', 'http://127.0.0.1:4173/')
 AXE = os.environ.get('AXE_PATH', '')  # مسار axe.min.js (اختياري): بدونه تُتجاوز فحوصات axe
@@ -63,7 +64,7 @@ def diff_pixels(a, b):
     return sum(1 for v in d.getdata() if v > 12)
 
 with sync_playwright() as p:
-    browser = p.chromium.launch()
+    browser = patch_browser(p.chromium.launch())
     logs = []
     def watch(page):
         page.on('console', lambda m: logs.append((m.type, m.text)) if m.type == 'error' else None)
@@ -243,7 +244,7 @@ with sync_playwright() as p:
         rp2.screenshot(path=SHOTS + f'/dashboard-{w}.png')
         rp2.goto(editor_url); rp2.wait_for_selector('.react-flow__node'); rp2.wait_for_timeout(900)
         over = rp2.evaluate('document.documentElement.scrollWidth - window.innerWidth')
-        dock = rp2.locator('[role="toolbar"][aria-label="Add to canvas"]').bounding_box(); zoom = rp2.locator('[role="toolbar"][aria-label="Zoom and view"]').bounding_box()
+        dock = rp2.locator('[role="toolbar"][aria-label="Add to canvas"], button[aria-label="Open add menu"]').first.bounding_box(); zoom = rp2.locator('[role="toolbar"][aria-label="Zoom and view"]').bounding_box()
         tools = rp2.locator('[role="toolbar"][aria-label="Canvas tools"]').bounding_box()
         groups = [g.bounding_box() for g in rp2.locator('[data-reveal="top"]').all()]
         inside = all(b['x'] >= -1 and b['x'] + b['width'] <= w + 1 and b['y'] >= -1 and b['y'] + b['height'] <= h + 1 for b in (dock, zoom, tools) + tuple(groups))
@@ -272,7 +273,7 @@ with sync_playwright() as p:
     check('touch device is detected as a coarse pointer', tp.evaluate("matchMedia('(pointer: coarse)').matches"))
     small = tp.evaluate("""[...document.querySelectorAll('button:not([data-compact]), [role=menuitem]')].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && (r.width < 43.5 || r.height < 43.5) }).map(e => (e.getAttribute('aria-label') || e.textContent || '').trim().slice(0, 28))""")
     check('every ordinary button is at least 44x44 px on touch', not small, ', '.join(small))
-    tp.get_by_role('button', name='Sticky note', exact=True).tap(); tp.touchscreen.tap(195, 420); tp.wait_for_timeout(200); tp.keyboard.press('Escape'); tp.wait_for_timeout(300)
+    open_add_menu(tp); tp.get_by_role('button', name='Sticky note', exact=True).tap(); tp.touchscreen.tap(195, 420); tp.wait_for_timeout(200); tp.keyboard.press('Escape'); tp.wait_for_timeout(300)
     handle = tp.evaluate("(() => { const h = document.querySelector('.connect-handle'); if (!h) return null; const r = h.getBoundingClientRect(); return [r.width, r.height] })()")
     check('connection dots are larger on touch screens', handle is not None and handle[0] >= 18, str(handle))
     tctx.close()

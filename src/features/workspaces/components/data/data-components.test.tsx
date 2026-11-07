@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { click, renderNode, type Rendered } from '@/test-utils/render'
 import type { BackupInfo } from '@/services/persistence/storage-adapter'

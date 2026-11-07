@@ -29,6 +29,11 @@ function PreviewShape({ rect }: { rect: PreviewRect }) {
       return <rect x={x} y={y} width={w} height={h} rx={1.2} fill="var(--ws)" fillOpacity={0.3} stroke="var(--ws)" strokeOpacity={0.55} strokeWidth={0.5} />
     case 'link':
       return <rect x={x} y={y} width={w} height={Math.min(h, 4)} rx={2} fill="var(--ws)" fillOpacity={0.5} />
+    case 'video':
+      return <rect x={x} y={y} width={w} height={h} rx={1.6} fill="var(--c-text)" fillOpacity={0.28} />
+    case 'shape':
+      return <rect x={x} y={y} width={w} height={h} rx={2} fill="none" stroke="var(--ws)" strokeOpacity={0.75} strokeWidth={0.7} />
+    case 'checklist':
     case 'text':
       return <rect x={x} y={y} width={w} height={h} rx={1} fill="var(--c-text)" fillOpacity={0.16} />
     case 'sticky':

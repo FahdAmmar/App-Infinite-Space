@@ -8,6 +8,7 @@
 """
 import os, sys
 from playwright.sync_api import sync_playwright
+from _common import patch_browser, open_add_menu
 
 URL = os.environ.get('BASE_URL', 'http://127.0.0.1:4173/')
 results = []
@@ -42,7 +43,7 @@ def create_workspace(pg, name):
 
 
 with sync_playwright() as p:
-    browser = p.chromium.launch()
+    browser = patch_browser(p.chromium.launch())
     logs = []
 
     def phone(width):
@@ -82,7 +83,7 @@ with sync_playwright() as p:
     pg.keyboard.press('Control+f'); pg.wait_for_timeout(400); surfaces['find bar'] = pg.evaluate(VISIBLE_FIELD_SIZES); pg.keyboard.press('Escape'); pg.wait_for_timeout(250)
     pg.keyboard.press('Control+k'); pg.wait_for_timeout(400); surfaces['command palette'] = pg.evaluate(VISIBLE_FIELD_SIZES); pg.keyboard.press('Escape'); pg.wait_for_timeout(250)
     pg.locator('header button[title="Rename workspace"]').click(); pg.wait_for_timeout(400); surfaces['title edit'] = pg.evaluate(VISIBLE_FIELD_SIZES); pg.keyboard.press('Escape'); pg.wait_for_timeout(250)
-    pg.get_by_role('button', name='Sticky note', exact=True).click(); pg.mouse.click(190, 420); pg.wait_for_timeout(700); surfaces['card editor'] = pg.evaluate(VISIBLE_FIELD_SIZES)
+    open_add_menu(pg); pg.get_by_role('button', name='Sticky note', exact=True).click(); pg.mouse.click(190, 420); pg.wait_for_timeout(700); surfaces['card editor'] = pg.evaluate(VISIBLE_FIELD_SIZES)
     for surface, fields in surfaces.items():
         check(f'touch: the {surface} fields are at least 16px', fields and all(f['size'] >= 16 for f in fields), str(fields))
     ctx.close()

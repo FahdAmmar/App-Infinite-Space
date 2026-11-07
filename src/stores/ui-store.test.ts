@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+// @vitest-environment jsdom
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useUiStore } from './ui-store'
 
 const KEY = 'infinitespace:v1:ui'
@@ -136,5 +137,25 @@ describe('theme modes', () => {
   it('ignores unknown saved values', async () => {
     await rehydrateWith({ themeMode: 'neon', highContrast: 'yes', checklistDismissed: 1 })
     expect(useUiStore.getState()).toMatchObject({ themeMode: 'dark', highContrast: false, checklistDismissed: false })
+  })
+})
+
+describe('toast options', () => {
+  it('replaces a toast that reuses an id instead of stacking a copy', () => {
+    useUiStore.setState({ toasts: [] })
+    useUiStore.getState().pushToast('info', 'first', { id: 'offline', sticky: true })
+    useUiStore.getState().pushToast('info', 'second', { id: 'offline', sticky: true })
+    const toasts = useUiStore.getState().toasts
+    expect(toasts).toHaveLength(1)
+    expect(toasts[0]).toMatchObject({ id: 'offline', message: 'second', sticky: true })
+  })
+
+  it('keeps an action on the toast and can dismiss it by id', () => {
+    useUiStore.setState({ toasts: [] })
+    const run = vi.fn()
+    useUiStore.getState().pushToast('info', 'update', { id: 'sw-update', action: { label: 'Reload', run } })
+    expect(useUiStore.getState().toasts[0]?.action?.label).toBe('Reload')
+    useUiStore.getState().dismissToast('sw-update')
+    expect(useUiStore.getState().toasts).toHaveLength(0)
   })
 })

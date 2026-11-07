@@ -69,6 +69,7 @@ function GroupNodeImpl({ id, data, selected }: NodeProps<GroupContainer>) {
       selected={selected}
       editing={isEditing}
       connectable={false}
+      locked={data.locked === true}
       onResizeEnd={() => api.getState().reconcileAllMembership()}
     >
       <div

@@ -19,7 +19,7 @@ export function TagFilterPill() {
   if (tag === null) return null
 
   return (
-    <Panel position="top-center" className={cn(stacked ? 'mt-[8.5rem]!' : 'mt-16!')}>
+    <Panel position="top-center" className={cn(stacked ? 'mt-[calc(8.5rem+var(--safe-top))]!' : 'mt-[calc(4rem+var(--safe-top))]!')}>
       <div className="flex items-center gap-1 rounded-full border border-line bg-raised py-1 pl-4 pr-1 text-sm shadow-pop">
         <p role="status" aria-live="polite" className="min-w-0">
           <span dir="auto" className="font-medium">

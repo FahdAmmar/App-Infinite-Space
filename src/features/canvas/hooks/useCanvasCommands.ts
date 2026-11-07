@@ -15,6 +15,7 @@ import {
   preparePaste,
   setHeldClipboard,
 } from '../utils/clipboard'
+import { isLocked } from '../utils/card-flags'
 import { planConnectedCard } from '../utils/connected-card'
 import { orderSlides } from '../utils/presentation'
 import { MAX_PASTE_CARDS, planTextPaste } from '../utils/text-paste'
@@ -239,7 +240,13 @@ export function useCanvasCommands(): CanvasCommands {
         }
         return true
       },
-      deleteSelection: () => canvasStore.getState().removeSelection(),
+      deleteSelection: () => {
+        const kept = canvasStore.getState().nodes.filter((node) => node.selected && isLocked(node)).length
+        canvasStore.getState().removeSelection()
+        if (kept > 0) {
+          useUiStore.getState().pushToast('info', kept === 1 ? 'A locked card was kept. Unlock it to delete it.' : `${kept} locked cards were kept. Unlock them to delete them.`)
+        }
+      },
       zoomIn: () => void flow.zoomIn({ duration: 200 }),
       zoomOut: () => void flow.zoomOut({ duration: 200 }),
       resetZoom: () => void flow.zoomTo(1, { duration: 200 }),

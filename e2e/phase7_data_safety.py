@@ -13,6 +13,7 @@
 """
 import json, os, sys, tempfile
 from playwright.sync_api import sync_playwright
+from _common import patch_browser
 
 URL = os.environ.get('BASE_URL', 'http://127.0.0.1:4173/')
 TMP = tempfile.mkdtemp(prefix='infinitespace-e2e7-')
@@ -51,7 +52,7 @@ def card_names(page):
     return page.locator('[data-workspace-id] h3').all_inner_texts()
 
 with sync_playwright() as p:
-    browser = p.chromium.launch()
+    browser = patch_browser(p.chromium.launch())
     ctx = browser.new_context(accept_downloads=True)
     ctx.add_init_script(SEED)
     errors = []

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 import { serializeCanvas } from '@/features/canvas/persistence/canvas-codec'
 import { createStickyNote } from '@/features/canvas/utils/node-factory'

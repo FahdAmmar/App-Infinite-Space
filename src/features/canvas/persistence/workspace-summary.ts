@@ -12,7 +12,9 @@ export interface CanvasSummary {
 function estimatedSize(node: CanvasNode): { width: number; height: number } {
   if (node.type === 'image') {
     const width = node.width ?? 280
-    return { width, height: (width * node.data.naturalHeight) / node.data.naturalWidth + 56 }
+    // البطاقة العادية فيها ترويسة وهوامش؛ الملصق والغلاف صورة خالصة
+    const chrome = (node.data.appearance ?? 'card') === 'card' ? 56 : 0
+    return { width, height: (width * node.data.naturalHeight) / node.data.naturalWidth + chrome }
   }
   return getNodeSize(node)
 }

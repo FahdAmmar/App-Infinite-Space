@@ -2,7 +2,7 @@
 name: verify
 description: Prove InfiniteSpace work with evidence before calling it done, fixed, passing, or ready to upload. Use after any change under src/, whenever the user asks to check, test, validate, or confirm the project, and always before delivering a ZIP. Runs typecheck, lint, unit tests, build, the Playwright flows, npm audit, and the docs check, then reports the real results and what stayed unverified.
 argument-hint: "[gate | ui | full]"
-allowed-tools: Bash(npm run typecheck), Bash(npm run lint), Bash(npm run test), Bash(npm run build), Bash(npm run docs:check), Bash(npm run deploy:check), Bash(npm audit), Bash(node .claude/hooks/test-hooks.mjs)
+allowed-tools: Bash(npm run typecheck), Bash(npm run lint), Bash(npm run test), Bash(npm run build), Bash(npm run size:check), Bash(npm run docs:check), Bash(npm run deploy:check), Bash(npm audit), Bash(node .claude/hooks/test-hooks.mjs)
 ---
 
 # Verify
@@ -26,6 +26,7 @@ npm run typecheck
 npm run lint
 npm run test
 npm run build
+npm run size:check
 npm run docs:check
 ```
 

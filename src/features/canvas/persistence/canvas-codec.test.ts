@@ -46,7 +46,7 @@ describe('serializeCanvas / deserializeCanvas round trip', () => {
 
   it('produces JSON-safe output', () => {
     const json = JSON.stringify(serializeCanvas([createStickyNote({ x: 0, y: 0 }, 1)], [], viewport))
-    expect(JSON.parse(json).schemaVersion).toBe(1)
+    expect(JSON.parse(json).schemaVersion).toBe(2)
   })
 })
 
@@ -237,5 +237,209 @@ describe('collectImageIds', () => {
       ]),
     )
     expect([...ids].sort()).toEqual(['a', 'b'])
+  })
+})
+
+describe('card status and lock (schema v2)', () => {
+  it('reads a version 1 canvas unchanged: no status, not locked, no lock flags', () => {
+    const out = deserializeCanvas(stored([rawSticky()]))
+    const [node] = out.nodes
+    expect(out.discardedCount).toBe(0)
+    expect(node?.data.status).toBeUndefined()
+    expect(node?.data.locked).toBeUndefined()
+    expect(node?.draggable).toBeUndefined()
+    expect(node?.deletable).toBeUndefined()
+  })
+
+  it('round-trips status and lock, and a locked card comes back immovable and undeletable', () => {
+    const node = { ...createStickyNote({ x: 0, y: 0 }, 1), id: 'a' }
+    const locked = { ...node, data: { ...node.data, status: 'done' as const, locked: true }, draggable: false, deletable: false }
+    const out = deserializeCanvas(serializeCanvas([locked], [], viewport))
+    expect(out.nodes).toEqual([locked])
+    expect(out.nodes[0]?.draggable).toBe(false)
+    expect(out.nodes[0]?.deletable).toBe(false)
+  })
+
+  it('derives the lock flags from data.locked even if the stored file claims otherwise', () => {
+    const raw = rawSticky({ draggable: true, data: { ...rawSticky().data, locked: true } })
+    const [node] = deserializeCanvas(stored([raw])).nodes
+    expect(node?.draggable).toBe(false)
+    expect(node?.deletable).toBe(false)
+  })
+
+  it('does not store default values', () => {
+    const node = { ...createStickyNote({ x: 0, y: 0 }, 1), id: 'a' }
+    const json = JSON.stringify(serializeCanvas([node], [], viewport))
+    expect(json).not.toContain('status')
+    expect(json).not.toContain('locked')
+  })
+
+  it('treats hostile status and lock values as defaults', () => {
+    const data = { ...rawSticky().data, status: 'weird', locked: 'yes' }
+    const [node] = deserializeCanvas(stored([rawSticky({ data })])).nodes
+    expect(node?.data.status).toBeUndefined()
+    expect(node?.data.locked).toBeUndefined()
+    const [numeric] = deserializeCanvas(stored([rawSticky({ data: { ...rawSticky().data, status: 7, locked: 1 } })])).nodes
+    expect(numeric?.data.status).toBeUndefined()
+    expect(numeric?.data.locked).toBeUndefined()
+  })
+
+  it('ignores a status stored on a group (groups have none) but keeps its lock', () => {
+    const group = { id: 'g', type: 'group', position: { x: 0, y: 0 }, width: 520, height: 360, data: { label: 'G', color: 'blue', tags: [], createdAt: 1, updatedAt: 1, status: 'done', locked: true } }
+    const [node] = deserializeCanvas(stored([group])).nodes
+    expect(node?.type).toBe('group')
+    expect(node?.data.status).toBeUndefined()
+    expect(node?.data.locked).toBe(true)
+    expect(node?.draggable).toBe(false)
+  })
+
+  it('accepts the new sticky colors and falls back for unknown ones', () => {
+    const colors = ['orange', 'red', 'nope'].map((color, i) => rawSticky({ id: `s${i}`, data: { ...rawSticky().data, color } }))
+    const out = deserializeCanvas(stored(colors)).nodes.map((n) => (n.type === 'sticky' ? n.data.color : null))
+    expect(out).toEqual(['orange', 'red', 'yellow'])
+  })
+})
+
+describe('image appearance', () => {
+  const rawImage = (appearance?: unknown) => ({
+    id: 'i1',
+    type: 'image',
+    position: { x: 0, y: 0 },
+    width: 280,
+    data: { imageId: 'img-1', title: '', description: '', fileName: 'a.png', naturalWidth: 800, naturalHeight: 400, tags: [], createdAt: 1, updatedAt: 1, ...(appearance === undefined ? {} : { appearance }) },
+  })
+  const appearanceOf = (value?: unknown) => {
+    const [node] = deserializeCanvas(stored([rawImage(value)])).nodes
+    return node?.type === 'image' ? node.data.appearance : 'not-an-image'
+  }
+
+  it('keeps sticker and cover, and leaves the default unset', () => {
+    expect(appearanceOf('frameless')).toBe('frameless')
+    expect(appearanceOf('cover')).toBe('cover')
+    expect(appearanceOf()).toBeUndefined()
+    expect(appearanceOf('card')).toBeUndefined()
+  })
+
+  it('falls back to the default for hostile values', () => {
+    for (const value of ['wide', 7, null, {}, ['cover']]) expect(appearanceOf(value)).toBeUndefined()
+  })
+
+  it('does not write an unset appearance back to storage', () => {
+    const [node] = deserializeCanvas(stored([rawImage()])).nodes
+    expect(JSON.stringify(serializeCanvas(node ? [node] : [], [], viewport))).not.toContain('appearance')
+  })
+})
+
+describe('checklist cards', () => {
+  const rawChecklist = (data: Record<string, unknown> = {}) => ({
+    id: 'c1',
+    type: 'checklist',
+    position: { x: 0, y: 0 },
+    width: 280,
+    height: 250,
+    data: { title: 'Todo', items: [{ id: 'a', text: 'one', done: true }, { id: 'b', text: 'two', done: false }], tags: [], createdAt: 1, updatedAt: 1, ...data },
+  })
+  const itemsOf = (data?: Record<string, unknown>) => {
+    const [node] = deserializeCanvas(stored([rawChecklist(data)])).nodes
+    return node?.type === 'checklist' ? node.data.items : null
+  }
+
+  it('round-trips a checklist exactly', () => {
+    const [node] = deserializeCanvas(stored([rawChecklist()])).nodes
+    const again = deserializeCanvas(serializeCanvas(node ? [node] : [], [], viewport)).nodes
+    expect(again).toEqual([node])
+    expect(itemsOf()).toEqual([{ id: 'a', text: 'one', done: true }, { id: 'b', text: 'two', done: false }])
+  })
+
+  it('survives a missing or wrongly typed items field', () => {
+    for (const items of [undefined, null, 'x', 7, {}]) expect(itemsOf({ items })).toEqual([])
+  })
+
+  it('drops non-object and empty items, coerces done, and repairs bad or duplicate ids', () => {
+    const items = itemsOf({ items: [null, 'x', { id: 'a', text: '   ' }, { id: 'a', text: 'kept', done: 'yes' }, { id: 'a', text: 'dup', done: true }, { text: 'noid' }, { id: 5, text: 'numeric id' }] })
+    expect(items?.map((i) => i.text)).toEqual(['kept', 'dup', 'noid', 'numeric id'])
+    expect(items?.map((i) => i.done)).toEqual([false, true, false, false])
+    expect(new Set(items?.map((i) => i.id)).size).toBe(4)
+  })
+
+  it('enforces the item count and text length limits', () => {
+    const many = Array.from({ length: 500 }, (_, i) => ({ id: `i${i}`, text: 'x'.repeat(1000) }))
+    const items = itemsOf({ items: many })
+    expect(items).toHaveLength(40)
+    expect(items?.every((i) => i.text.length <= 160)).toBe(true)
+  })
+})
+
+describe('shape cards', () => {
+  const rawShape = (data: Record<string, unknown> = {}, over: Record<string, unknown> = {}) => ({
+    id: 'sh1',
+    type: 'shape',
+    position: { x: 0, y: 0 },
+    width: 200,
+    height: 140,
+    data: { shape: 'diamond', label: 'Decide', color: 'orange', tags: [], createdAt: 1, updatedAt: 1, ...data },
+    ...over,
+  })
+  const shapeOf = (data?: Record<string, unknown>, over?: Record<string, unknown>) => {
+    const [node] = deserializeCanvas(stored([rawShape(data, over)])).nodes
+    return node?.type === 'shape' ? node : null
+  }
+
+  it('round-trips every shape kind with its text and color', () => {
+    for (const shape of ['rectangle', 'ellipse', 'diamond']) {
+      const node = shapeOf({ shape })
+      expect(node?.data).toMatchObject({ shape, label: 'Decide', color: 'orange' })
+      const again = deserializeCanvas(serializeCanvas(node ? [node] : [], [], viewport)).nodes
+      expect(again).toEqual([node])
+    }
+  })
+
+  it('falls back to a rectangle, neutral-safe color and empty label for hostile values', () => {
+    const node = shapeOf({ shape: 'star', color: 'nope', label: 42 })
+    expect(node?.data.shape).toBe('rectangle')
+    expect(node?.data.color).toBe('yellow')
+    expect(node?.data.label).toBe('')
+  })
+
+  it('clamps a tiny or huge size to the resize limits', () => {
+    const tiny = shapeOf({}, { width: 1, height: 1 })
+    expect(tiny?.width).toBeGreaterThanOrEqual(90)
+    expect(tiny?.height).toBeGreaterThanOrEqual(60)
+  })
+})
+
+describe('video cards', () => {
+  const ID = 'dQw4w9WgXcQ'
+  const rawVideo = (data: Record<string, unknown> = {}) => ({
+    id: 'v1',
+    type: 'video',
+    position: { x: 0, y: 0 },
+    width: 360,
+    height: 260,
+    data: { url: `https://www.youtube.com/watch?v=${ID}`, title: 'Talk', tags: [], createdAt: 1, updatedAt: 1, ...data },
+  })
+  const urlOf = (data?: Record<string, unknown>) => {
+    const [node] = deserializeCanvas(stored([rawVideo(data)])).nodes
+    return node?.type === 'video' ? node.data.url : 'not-a-video'
+  }
+
+  it('round-trips a video card', () => {
+    const [node] = deserializeCanvas(stored([rawVideo()])).nodes
+    expect(deserializeCanvas(serializeCanvas(node ? [node] : [], [], viewport)).nodes).toEqual([node])
+    expect(urlOf()).toBe(`https://www.youtube.com/watch?v=${ID}`)
+  })
+
+  it('rebuilds the canonical address from the video id, dropping other parameters', () => {
+    expect(urlOf({ url: `https://youtu.be/${ID}?si=track&t=9` })).toBe(`https://www.youtube.com/watch?v=${ID}`)
+  })
+
+  it('turns anything that is not a valid YouTube link into an empty card, never keeping the text', () => {
+    for (const url of ['javascript:alert(1)', 'https://evil.com/watch?v=dQw4w9WgXcQ', `https://youtube.com.evil.com/watch?v=${ID}`, '"><script>alert(1)</script>', 42, null, undefined, {}]) {
+      expect(urlOf({ url })).toBe('')
+    }
+  })
+
+  it('accepts an empty video card (the state right after creating one)', () => {
+    expect(urlOf({ url: '' })).toBe('')
   })
 })

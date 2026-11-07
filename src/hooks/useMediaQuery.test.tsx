@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { installMatchMedia } from '@/test-utils/match-media'

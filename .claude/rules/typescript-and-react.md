@@ -14,7 +14,7 @@ paths:
 
 ## Types
 
-- Model variants as discriminated unions (`CanvasNode` is `sticky | text | image | link | group`). Switch over the tag and finish with an exhaustiveness check so a new variant fails compilation where it is unhandled.
+- Model variants as discriminated unions (`CanvasNode` is `sticky | text | image | link | checklist | shape | video | group`). Switch over the tag and finish with an exhaustiveness check so a new variant fails compilation where it is unhandled.
 - Type per-variant updates through `updateNodeData(id, type, patch)` so a patch for the wrong type does not compile.
 - Parse unknown input (storage, files, URLs) into typed values at the boundary; interior code receives only validated types.
 

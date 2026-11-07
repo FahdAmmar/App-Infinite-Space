@@ -66,6 +66,14 @@
   --sticky-neutral-bg: #26262a;
   --sticky-neutral-border: #4d4d56;
   --sticky-neutral-ink: #f4f4f5;
+  --sticky-orange-bg: #5a4128;
+  --sticky-orange-border: #e8a257;
+  --sticky-orange-ink: #fff4e6;
+  --sticky-red-bg: #5a2f33;
+  --sticky-red-border: #e8858c;
+  --sticky-red-ink: #fff0f1;
+  --status-doing: #f5b84a;
+  --status-done: #4cc38a;
 }
 
 :root[data-theme='light'] {
@@ -119,6 +127,14 @@
   --sticky-neutral-bg: #ececef;
   --sticky-neutral-border: #d5d5db;
   --sticky-neutral-ink: #1e1e1e;
+  --sticky-orange-bg: #f9c89b;
+  --sticky-orange-border: #eeb07a;
+  --sticky-orange-ink: #1e1e1e;
+  --sticky-red-bg: #f4a9a8;
+  --sticky-red-border: #e58c8b;
+  --sticky-red-ink: #1e1e1e;
+  --status-doing: #b8730a;
+  --status-done: #1f8a5b;
 }
 
 /* تباين عالٍ: حدود وخطوط أوضح وألوان نص أقوى فوق السمة الحالية (الألوان وحدها لا تكفي؛ الحدود تتضخم أيضاً) */
@@ -141,6 +157,15 @@
 }
 
 /* ربط المتغيرات بأدوات Tailwind: bg-surface, text-ink, border-line ... */
+/* هوامش المناطق الآمنة (نتوء الشاشة ومؤشر الصفحة الرئيسية في الهواتف). متغيرات لا استخدام مباشر لـ env()
+   كي يمكن محاكاة القيم في اختبار المتصفح، فلا يوجد في Chromium نتوء حقيقي. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
 @theme inline {
   --color-bg: var(--c-bg);
   --color-surface: var(--c-surface);

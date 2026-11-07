@@ -56,6 +56,7 @@ import { nodeTypes } from './nodes/node-types'
 const minimapNodeColor = (node: CanvasNode): string => {
   if (node.type === 'sticky') return STICKY_COLORS[node.data.color].bg
   if (node.type === 'group') return STICKY_COLORS[node.data.color].border
+  if (node.type === 'shape') return STICKY_COLORS[node.data.color].bg
   return 'var(--c-line)'
 }
 
@@ -81,7 +82,7 @@ const ARIA_LABELS = {
 
 const SNAP_GRID: [number, number] = [20, 20]
 
-const PLACEMENT_TOOLS = ['sticky', 'text', 'link', 'group'] as const
+const PLACEMENT_TOOLS = ['sticky', 'text', 'link', 'checklist', 'shape', 'group'] as const
 
 function isPlacementTool(tool: string): tool is (typeof PLACEMENT_TOOLS)[number] {
   return PLACEMENT_TOOLS.some((candidate) => candidate === tool)

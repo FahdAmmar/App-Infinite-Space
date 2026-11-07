@@ -11,6 +11,7 @@
 """
 import os, re, sys, tempfile
 from playwright.sync_api import sync_playwright
+from _common import patch_browser
 
 URL = os.environ.get('BASE_URL', 'http://127.0.0.1:4173/')
 TMP = tempfile.mkdtemp(prefix='infinitespace-e2e12-')
@@ -23,7 +24,7 @@ def check(name, cond, detail=''):
 
 
 with sync_playwright() as p:
-    browser = p.chromium.launch()
+    browser = patch_browser(p.chromium.launch())
     ctx = browser.new_context(viewport={'width': 1440, 'height': 900}, color_scheme='dark', permissions=['clipboard-read', 'clipboard-write'])
     pg = ctx.new_page()
     logs = []
@@ -161,7 +162,7 @@ with sync_playwright() as p:
     dlg.get_by_role('button', name='Create workspace').click()
     pg.wait_for_url('**/w/**'); pg.wait_for_selector('.react-flow'); pg.wait_for_timeout(900)
     check('a Kanban workspace opens with three columns and five notes', pg.locator('.react-flow__node-group').count() == 3 and pg.locator('.react-flow__node-sticky').count() == 5, f"{pg.locator('.react-flow__node-group').count()} groups, {pg.locator('.react-flow__node-sticky').count()} notes")
-    check('the success message names the template', pg.get_by_text('from the Kanban template').count() == 1)
+    check('no redundant "Created ..." toast: opening the workspace is the confirmation', pg.get_by_text('from the Kanban template').count() == 0)
     check('the columns are titled', all(pg.locator('.react-flow__node-group', has_text=t).count() == 1 for t in ('To do', 'Doing', 'Done')))
     check('the whole board is on screen at once', all((g.bounding_box() or {'x': -1, 'y': -1, 'width': 9999, 'height': 9999})['x'] >= 0 and g.bounding_box()['x'] + g.bounding_box()['width'] <= 1440 and g.bounding_box()['y'] >= 0 and g.bounding_box()['y'] + g.bounding_box()['height'] <= 900 for g in pg.locator('.react-flow__node-group').all()))
     check('the empty-canvas hint is not shown for a template', pg.get_by_text('A blank canvas').count() == 0)

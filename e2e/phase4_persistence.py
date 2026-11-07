@@ -13,6 +13,7 @@
 """
 import json, os, struct, sys, tempfile, zlib
 from playwright.sync_api import sync_playwright
+from _common import patch_browser
 
 URL = os.environ.get('BASE_URL', 'http://127.0.0.1:4173/')
 TMP = tempfile.mkdtemp(prefix='infinitespace-e2e4-')
@@ -69,7 +70,7 @@ IDB_AGE_IMAGES = """async () => {
   db.close() }"""
 
 with sync_playwright() as p:
-    browser = p.chromium.launch()
+    browser = patch_browser(p.chromium.launch())
     ctx = browser.new_context(viewport={'width': 1440, 'height': 900}, color_scheme='dark')
     ctx.add_init_script(FAIL_PUT)
     pg = ctx.new_page()
@@ -86,6 +87,9 @@ with sync_playwright() as p:
         pg.mouse.move(x1, y1); pg.mouse.down(); pg.mouse.move(x1 + 4, y1 + 4, steps=2); pg.mouse.move(x2 + 4, y2 + 4, steps=12); pg.wait_for_timeout(150); pg.mouse.up(); pg.wait_for_timeout(200)
     def sticky(x, y, text):
         pg.mouse.move(x, y); pg.mouse.dblclick(x, y); pg.wait_for_timeout(120); pg.keyboard.type(text); pg.keyboard.press('Escape'); pg.wait_for_timeout(150)
+    def free_point():
+        # نقطة على لوحة فارغة فعلاً (لا بطاقة ولا شريط عائم): موضع البطاقات يتبع الإزاحة/التكبير الحاليين فلا نثبّت إحداثيات
+        return pg.evaluate("""() => { for (let y = 200; y < 760; y += 30) for (let x = 760; x < 1380; x += 30) { const e = document.elementFromPoint(x, y); if (e && e.classList.contains('react-flow__pane')) return [x, y] } return [1100, 700] }""")
     def status_text(): return pg.locator('header [role="status"]').first.inner_text()
     def wait_saved(timeout=8000):
         pg.wait_for_function("() => { const el = document.querySelector('header [role=status]'); return !!el && /^Saved/.test(el.innerText.trim()) }", timeout=timeout)
@@ -154,7 +158,9 @@ with sync_playwright() as p:
     undone_count = pg.locator('.react-flow__node').count()
 
     pn = node('Persisted note'); b0 = pn.bounding_box()
-    drag(b0['x'] + 40, b0['y'] + 40, b0['x'] + 40 + 150, b0['y'] + 40 + 90)
+    # نبدأ السحب من داخل الجزء الظاهر من البطاقة بعيداً عن الحافة (قرب الحافة يفعّل التحريك التلقائي للعرض فيزيح الإحداثيات)
+    sx, sy = max(b0['x'], 120) + 40, b0['y'] + 100
+    drag(sx, sy, sx + 150, sy + 90)
     b1 = pn.bounding_box()
     check('dragging moved the note', abs((b1['x'] - b0['x']) - 150) < 3)
     pg.mouse.click(900, 130); pg.keyboard.press('Control+z'); pg.wait_for_timeout(250)
@@ -208,7 +214,7 @@ with sync_playwright() as p:
 
     # ───────────── مغادرة فورية ودمج ضغطات الأسهم ─────────────
     pg.get_by_role('link', name='Persist test (copy)').first.click(); pg.wait_for_selector('.react-flow__node'); pg.wait_for_timeout(500)
-    pg.mouse.click(900, 130); sticky(1050, 200, 'Quick leave')
+    pg.mouse.click(900, 130); fx, fy = free_point(); sticky(fx, fy, 'Quick leave')
     pg.get_by_role('link', name='Workspaces').first.click()  # قبل انتهاء مهلة التأجيل (0.8 ث): يجب أن يحفظ عند المغادرة
     pg.wait_for_selector('article'); pg.wait_for_timeout(500)
     pg.get_by_role('link', name='Persist test (copy)').first.click(); pg.wait_for_selector('.react-flow__node'); pg.wait_for_timeout(600)
@@ -257,7 +263,7 @@ with sync_playwright() as p:
     sticky(500, 300, 'Fresh start'); wait_saved()
     canv = pg.evaluate(IDB_ALL, ['infinitespace-canvases', 'canvases'])
     still = pg.evaluate(IDB_ALL, ['infinitespace-canvases', 'backups'])
-    check('after saving new work the backup still holds the original content', any(b['key'] == f'canvas-backup:{cid}' and b['value'].get('schemaVersion') == 99 for b in still) and any(c['key'] == cid and c['value']['schemaVersion'] == 1 for c in canv))
+    check('after saving new work the backup still holds the original content', any(b['key'] == f'canvas-backup:{cid}' and b['value'].get('schemaVersion') == 99 for b in still) and any(c['key'] == cid and c['value']['schemaVersion'] == 2 for c in canv))  # 2 = CANVAS_SCHEMA_VERSION (status/lock/new card types); the unreadable 99 above must still be refused
 
     # ───────────── عناصر تالفة ─────────────
     new_workspace('Damaged test'); did = workspace_id(); pg.goto(URL)

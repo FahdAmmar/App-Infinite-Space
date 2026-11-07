@@ -1,11 +1,12 @@
 import type { Viewport } from '@xyflow/react'
-import type { StoredCanvas } from '@/services/persistence/storage-adapter'
+import { CANVAS_SCHEMA_VERSION, type StoredCanvas } from '@/services/persistence/storage-adapter'
 import type { CanvasEdge, CanvasEdgeData } from '../types/edges'
 import { EDGE_ARROWS, EDGE_COLOR_IDS, EDGE_CURVES, EDGE_LINE_STYLES } from '../types/edges'
-import type { BaseNodeData, CanvasNode, GroupContainer, StickyColorId } from '../types/nodes'
-import { STICKY_COLOR_IDS } from '../types/nodes'
+import type { BaseNodeData, CanvasNode, ChecklistItem, GroupContainer, StickyColorId } from '../types/nodes'
+import { CARD_STATUSES, IMAGE_APPEARANCES, SHAPE_KINDS, STICKY_COLOR_IDS } from '../types/nodes'
 import {
   CANVAS_LIMITS,
+  CHECKLIST_LIMITS,
   CONTENT_MAX_LENGTH,
   DEFAULT_EDGE_DATA,
   DEFAULT_STICKY_COLOR,
@@ -19,7 +20,9 @@ import {
   ZOOM_LIMITS,
   getResizeLimits,
 } from '../utils/constants'
+import { syncLockFlags } from '../utils/card-flags'
 import { isHandleSide } from '../utils/edge-utils'
+import { parseYouTubeUrl } from '../utils/video-url'
 import { sortGroupsFirst } from '../utils/group-utils'
 import { normalizeUrl } from '../utils/link-url'
 import { addTag } from '../utils/tags'
@@ -74,7 +77,7 @@ export function serializeCanvas(
   viewport: Viewport,
 ): StoredCanvas {
   return {
-    schemaVersion: 1,
+    schemaVersion: CANVAS_SCHEMA_VERSION,
     nodes: nodes.map((node) => ({
       id: node.id,
       type: node.type,
@@ -98,7 +101,7 @@ export function serializeCanvas(
 
 // ───────────── إعادة البناء مع التحقق ─────────────
 
-function sanitizeBase(data: UnknownRecord, now: number): BaseNodeData {
+function sanitizeBase(data: UnknownRecord, now: number, allowStatus: boolean): BaseNodeData {
   const tags: string[] = []
   if (Array.isArray(data.tags)) {
     for (const tag of data.tags.slice(0, MAX_TAGS * 2)) {
@@ -109,7 +112,15 @@ function sanitizeBase(data: UnknownRecord, now: number): BaseNodeData {
     }
   }
   const createdAt = isFiniteNumber(data.createdAt) ? data.createdAt : now
-  return { createdAt, updatedAt: isFiniteNumber(data.updatedAt) ? data.updatedAt : createdAt, tags }
+  const status = allowStatus ? oneOf(CARD_STATUSES, data.status, 'none') : 'none'
+  return {
+    createdAt,
+    updatedAt: isFiniteNumber(data.updatedAt) ? data.updatedAt : createdAt,
+    tags,
+    // القيم الافتراضية لا تُخزَّن: لوحة بلا حالات ولا أقفال تبقى بالشكل الذي كتبه الإصدار 1
+    ...(status !== 'none' ? { status } : {}),
+    ...(data.locked === true ? { locked: true } : {}),
+  }
 }
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
@@ -128,6 +139,12 @@ function sanitizeSize(raw: UnknownRecord, type: CanvasNode['type']): { width: nu
 
 /** يعيد عقدة نظيفة (بدون parentId؛ تُعالج العضوية لاحقاً) أو null إن تعذّر إنقاذها. */
 function sanitizeNode(value: unknown, now: number): CanvasNode | null {
+  const node = sanitizeNodeContent(value, now)
+  // علما السحب والحذف يُشتقان من data.locked في مكان واحد (انظر card-flags.ts)
+  return node === null ? null : syncLockFlags(node)
+}
+
+function sanitizeNodeContent(value: unknown, now: number): CanvasNode | null {
   if (!isRecord(value)) return null
   const { id, type } = value
   if (typeof id !== 'string' || id.length === 0 || id.length > 128) return null
@@ -137,7 +154,7 @@ function sanitizeNode(value: unknown, now: number): CanvasNode | null {
     y: clamp(value.position.y, -MAX_COORDINATE, MAX_COORDINATE),
   }
   const data = isRecord(value.data) ? value.data : {}
-  const base = sanitizeBase(data, now)
+  const base = sanitizeBase(data, now, type !== 'group')
 
   switch (type) {
     case 'sticky':
@@ -164,6 +181,7 @@ function sanitizeNode(value: unknown, now: number): CanvasNode | null {
       }
     case 'image': {
       const imageId = typeof data.imageId === 'string' && data.imageId.length > 0 && data.imageId.length <= 128 ? data.imageId : null
+      const appearance = oneOf(IMAGE_APPEARANCES, data.appearance, 'card')
       const naturalWidth = data.naturalWidth
       const naturalHeight = data.naturalHeight
       // بلا معرّف صورة أو أبعاد صالحة لا يمكن رسم البطاقة (النسبة مجهولة): نتجاهلها
@@ -183,6 +201,7 @@ function sanitizeNode(value: unknown, now: number): CanvasNode | null {
           fileName: text(data.fileName, 255),
           naturalWidth,
           naturalHeight,
+          ...(appearance !== 'card' ? { appearance } : {}),
         },
       }
     }
@@ -196,6 +215,33 @@ function sanitizeNode(value: unknown, now: number): CanvasNode | null {
         data: { ...base, url, title: text(data.title, TITLE_MAX_LENGTH), description: text(data.description, DESCRIPTION_MAX_LENGTH) },
       }
     }
+    case 'video': {
+      // الرابط يُعاد بناؤه من معرّف الفيديو بعد التحقق؛ أي شيء غير رابط YouTube صالح يصير بطاقة فارغة
+      const video = typeof data.url === 'string' ? parseYouTubeUrl(data.url) : null
+      return {
+        id,
+        type: 'video',
+        position,
+        ...sanitizeSize(value, 'video'),
+        data: { ...base, url: video?.url ?? '', title: text(data.title, TITLE_MAX_LENGTH) },
+      }
+    }
+    case 'shape':
+      return {
+        id,
+        type: 'shape',
+        position,
+        ...sanitizeSize(value, 'shape'),
+        data: { ...base, shape: oneOf(SHAPE_KINDS, data.shape, 'rectangle'), label: text(data.label, TITLE_MAX_LENGTH), color: stickyColor(data.color) },
+      }
+    case 'checklist':
+      return {
+        id,
+        type: 'checklist',
+        position,
+        ...sanitizeSize(value, 'checklist'),
+        data: { ...base, title: text(data.title, TITLE_MAX_LENGTH), items: sanitizeChecklistItems(data.items) },
+      }
     case 'group':
       return {
         id,
@@ -208,6 +254,24 @@ function sanitizeNode(value: unknown, now: number): CanvasNode | null {
     default:
       return null
   }
+}
+
+function sanitizeChecklistItems(value: unknown): ChecklistItem[] {
+  if (!Array.isArray(value)) return []
+  const items: ChecklistItem[] = []
+  const seen = new Set<string>()
+  for (const raw of value.slice(0, CHECKLIST_LIMITS.maxItems * 2)) {
+    if (items.length >= CHECKLIST_LIMITS.maxItems) break
+    if (!isRecord(raw)) continue
+    const label = text(raw.text, CHECKLIST_LIMITS.itemMaxLength).replace(/\s+/g, ' ').trim()
+    if (label === '') continue
+    let id = typeof raw.id === 'string' && raw.id.length > 0 && raw.id.length <= 64 ? raw.id : `item-${items.length}`
+    // معرّف مكرر أو مفقود يُستبدل، فلا تتعارض مفاتيح العرض ولا تتأثر عناصر أخرى بتبديل واحد
+    while (seen.has(id)) id = `${id}-${items.length}`
+    seen.add(id)
+    items.push({ id, text: label, done: raw.done === true })
+  }
+  return items
 }
 
 function sanitizeEdgeData(value: unknown): CanvasEdgeData {

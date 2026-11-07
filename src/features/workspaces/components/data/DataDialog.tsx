@@ -1,4 +1,5 @@
 import { Dialog } from '@/components/ui/Dialog'
+import { BackupSection } from './BackupSection'
 import { ImportSection } from './ImportSection'
 import { RecoverySection } from './RecoverySection'
 import { StorageSection } from './StorageSection'
@@ -15,10 +16,11 @@ export function DataDialog({ open, onClose }: DataDialogProps) {
       open={open}
       onClose={onClose}
       title="Data & backup"
-      description="Your workspaces live only in this browser. Export a workspace from its ⋯ menu to keep a copy you control."
+      description="Your workspaces live only in this browser. Back them up to a folder, or export a workspace from its ⋯ menu, to keep a copy you control."
     >
       <div className="space-y-6">
         <StorageSection />
+        <BackupSection />
         <ImportSection />
         <RecoverySection />
       </div>

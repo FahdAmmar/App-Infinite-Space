@@ -351,3 +351,99 @@ button.tag-chip {
   height: calc(2.5rem * var(--label-scale, 1));
   font-size: calc(0.875rem * var(--label-scale, 1));
 }
+
+/* لوحات React Flow (الـ dock وأدوات التكبير ...) تحتفظ بهامشها الافتراضي 15px وتزيد عليه المنطقة الآمنة */
+.canvas-root .react-flow__panel.bottom { margin-bottom: calc(15px + var(--safe-bottom)); }
+.canvas-root .react-flow__panel.top { margin-top: calc(15px + var(--safe-top)); }
+.canvas-root .react-flow__panel.left { margin-left: calc(15px + var(--safe-left)); }
+.canvas-root .react-flow__panel.right { margin-right: calc(15px + var(--safe-right)); }
+
+/* دائرة حالة البطاقة (مرجع Kinopio): خافتة بلا حالة، وتتضح عند المرور والتحديد */
+.canvas-root .status-ring {
+  position: absolute;
+  inset-block-start: 0.4rem;
+  inset-inline-end: 0.4rem;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  padding: 0;
+  border: 1.5px solid currentColor;
+  border-radius: 9999px;
+  color: var(--c-muted, #8a8a94);
+  background: transparent;
+  opacity: 0.45;
+  cursor: pointer;
+  transition: opacity 120ms ease, background-color 120ms ease;
+}
+.canvas-root .react-flow__node:hover .status-ring,
+.canvas-root .react-flow__node.selected .status-ring,
+.canvas-root .status-ring:focus-visible,
+.canvas-root .status-ring:not([data-status='none']) {
+  opacity: 1;
+}
+.canvas-root .status-ring:focus-visible {
+  outline: 2px solid var(--c-accent, #7c6cf0);
+  outline-offset: 2px;
+}
+.canvas-root .status-ring[data-status='doing'] {
+  color: var(--status-doing);
+}
+.canvas-root .status-ring[data-status='done'] {
+  color: #fff;
+  border-color: var(--status-done);
+  background: var(--status-done);
+}
+.canvas-root .status-ring-half {
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+}
+.canvas-root .card-lock-icon {
+  position: absolute;
+  inset-block-start: 0.45rem;
+  inset-inline-start: 0.45rem;
+  z-index: 2;
+  width: 0.8rem;
+  height: 0.8rem;
+  color: var(--c-muted, #8a8a94);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas-root .status-ring {
+    transition: none;
+  }
+}
+
+/* صورة «ملصق»: بلا إطار؛ الظل يتبع حدود الصورة الفعلية فيناسب PNG الشفاف، والتحديد بحدّ خارجي */
+.canvas-root .image-frameless {
+  filter: drop-shadow(0 6px 14px rgb(0 0 0 / 0.35));
+  border-radius: 0.5rem;
+}
+.canvas-root .image-frameless-selected {
+  outline: 2px solid var(--c-accent, #7c6cf0);
+  outline-offset: 3px;
+}
+.canvas-root .image-cover-caption {
+  background: linear-gradient(to top, rgb(0 0 0 / 0.78), rgb(0 0 0 / 0));
+}
+
+/* شريط تقدّم قائمة المهام: اللون يتبع رمز «تم» في السمتين */
+.canvas-root .checklist-progress {
+  background: var(--status-done);
+  transition: width 160ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas-root .checklist-progress {
+    transition: none;
+  }
+}
+
+/* الشكل: التحديد بحدّ خارجي منقّط (الإطار نفسه SVG لا يصلح لتحديد صندوقي) */
+.canvas-root .shape-node-selected {
+  outline: 2px dashed var(--c-accent, #7c6cf0);
+  outline-offset: 3px;
+  border-radius: 0.5rem;
+}

@@ -12,6 +12,7 @@
 import os, re, sys, tempfile
 from PIL import Image, ImageChops
 from playwright.sync_api import sync_playwright
+from _common import patch_browser
 
 URL = os.environ.get('BASE_URL', 'http://127.0.0.1:4173/')
 TMP = tempfile.mkdtemp(prefix='infinitespace-e2e11-')
@@ -24,7 +25,7 @@ def check(name, cond, detail=''):
 
 
 with sync_playwright() as p:
-    browser = p.chromium.launch()
+    browser = patch_browser(p.chromium.launch())
     ctx = browser.new_context(viewport={'width': 1440, 'height': 900}, color_scheme='dark', permissions=['clipboard-read', 'clipboard-write'])
     pg = ctx.new_page()
     logs = []

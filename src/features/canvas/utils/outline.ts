@@ -40,6 +40,12 @@ export function nodeLabel(node: CanvasNode): string {
       return shorten(node.data.title.trim() || node.data.fileName || 'Image')
     case 'link':
       return shorten(node.data.title.trim() || (node.data.url === '' ? 'Empty link' : hostOf(node.data.url)))
+    case 'video':
+      return shorten(node.data.title.trim() || (node.data.url === '' ? 'Empty video' : 'Video'))
+    case 'shape':
+      return shorten(node.data.label.trim() || 'Shape')
+    case 'checklist':
+      return shorten(node.data.title.trim() || node.data.items[0]?.text || 'Empty checklist')
     case 'group':
       return shorten(node.data.label.trim() || 'Untitled group')
   }

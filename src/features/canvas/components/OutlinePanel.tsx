@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { FileText, Image as ImageIcon, Layers, Link as LinkIcon, Search, StickyNote, Type, X } from 'lucide-react'
+import { FileText, Image as ImageIcon, Layers, Link as LinkIcon, ListChecks, Shapes, Video, Search, StickyNote, Type, X } from 'lucide-react'
 import { IconButton } from '@/components/ui/Button'
 import { cn } from '@/lib/cn'
 import { useCanvasStore, useCanvasStoreApi } from '@/stores/canvas-store-context'
@@ -10,7 +10,7 @@ import { buildOutline } from '../utils/outline'
 
 const EMPTY_NODES: readonly CanvasNode[] = []
 
-const KIND_ICON = { sticky: StickyNote, text: Type, image: ImageIcon, link: LinkIcon, group: Layers } as const
+const KIND_ICON = { sticky: StickyNote, text: Type, image: ImageIcon, link: LinkIcon, checklist: ListChecks, shape: Shapes, video: Video, group: Layers } as const
 
 /**
  * «المخطط»: قائمة خطية بكل مجموعات اللوحة وبطاقاتها بترتيب القراءة، والنقر على صف ينقلك إليه.
@@ -50,7 +50,7 @@ function OutlineBody({ nodes, commands, onClose }: { nodes: readonly CanvasNode[
     <aside
       aria-label="Canvas outline"
       onKeyDown={handleKeyDown}
-      className="absolute top-[4.5rem] bottom-28 left-3 z-20 flex w-72 flex-col rounded-2xl border border-line bg-surface/95 shadow-pop backdrop-blur-md max-sm:right-3 max-sm:w-auto sm:left-[4.5rem]"
+      className="absolute top-[calc(4.5rem+var(--safe-top))] bottom-[calc(7rem+var(--safe-bottom))] left-[calc(0.75rem+var(--safe-left))] z-20 flex w-72 flex-col rounded-2xl border border-line bg-surface/95 shadow-pop backdrop-blur-md max-sm:right-3 max-sm:w-auto sm:left-[4.5rem]"
     >
       <div className="flex items-center justify-between gap-2 px-3 pt-2.5">
         <h2 className="text-sm font-semibold">

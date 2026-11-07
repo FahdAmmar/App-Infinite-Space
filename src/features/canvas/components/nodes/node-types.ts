@@ -1,8 +1,11 @@
 import type { NodeTypes } from '@xyflow/react'
+import { ChecklistNode } from './ChecklistNode'
 import { GroupNode } from './GroupNode'
 import { ImageCardNode } from './ImageCardNode'
 import { LinkCardNode } from './LinkCardNode'
+import { ShapeNode } from './ShapeNode'
 import { StickyNoteNode } from './StickyNoteNode'
+import { VideoNode } from './VideoNode'
 import { TextCardNode } from './TextCardNode'
 
 /**
@@ -15,5 +18,8 @@ export const nodeTypes = {
   text: TextCardNode,
   image: ImageCardNode,
   link: LinkCardNode,
+  checklist: ChecklistNode,
+  shape: ShapeNode,
+  video: VideoNode,
   group: GroupNode,
 } satisfies NodeTypes

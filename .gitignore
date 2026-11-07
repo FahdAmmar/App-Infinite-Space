@@ -18,7 +18,8 @@ Thumbs.db
 *.log
 
 *.zip
-zip
+.zip 
+
 
 # Claude Code personal overrides (shared settings stay committed)
 .claude/settings.local.json

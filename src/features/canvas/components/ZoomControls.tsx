@@ -27,7 +27,7 @@ export function ZoomControls({ commands }: { commands: CanvasCommands }) {
   const snapToGrid = useUiStore((state) => state.snapToGrid)
 
   return (
-    <Panel position="bottom-right" className="max-[1100px]:mb-[84px]!">
+    <Panel position="bottom-right" className="max-[1100px]:mb-[calc(84px+var(--safe-bottom))]!">
       <div
         role="toolbar"
         aria-label="Zoom and view"

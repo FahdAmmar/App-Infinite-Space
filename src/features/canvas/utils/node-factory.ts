@@ -3,14 +3,19 @@ import { createId } from '@/lib/id'
 import type { CanvasEdge } from '../types/edges'
 import type {
   CanvasNode,
+  ChecklistCard,
   CreatableNodeKind,
   GroupContainer,
   ImageCard,
   LinkCard,
+  ShapeCard,
+  ShapeKind,
   StickyColorId,
+  VideoCard,
   StickyNote,
   TextCard,
 } from '../types/nodes'
+import { syncLockFlags } from './card-flags'
 import { DEFAULT_STICKY_COLOR, DUPLICATE_OFFSET, NODE_SIZES } from './constants'
 import { sortGroupsFirst } from './group-utils'
 
@@ -56,6 +61,42 @@ export function createLinkCard(center: XYPosition, now: number): LinkCard {
     width,
     height,
     data: { url: '', title: '', description: '', tags: [], createdAt: now, updatedAt: now },
+  }
+}
+
+export function createChecklist(center: XYPosition, now: number): ChecklistCard {
+  const { width, height } = NODE_SIZES.checklist
+  return {
+    id: createId(),
+    type: 'checklist',
+    position: topLeftFromCenter(center, width, height),
+    width,
+    height,
+    data: { title: '', items: [], tags: [], createdAt: now, updatedAt: now },
+  }
+}
+
+export function createShape(center: XYPosition, now: number, shape: ShapeKind = 'rectangle', color: StickyColorId = 'neutral'): ShapeCard {
+  const { width, height } = NODE_SIZES.shape
+  return {
+    id: createId(),
+    type: 'shape',
+    position: topLeftFromCenter(center, width, height),
+    width,
+    height,
+    data: { shape, label: '', color, tags: [], createdAt: now, updatedAt: now },
+  }
+}
+
+export function createVideo(center: XYPosition, now: number): VideoCard {
+  const { width, height } = NODE_SIZES.video
+  return {
+    id: createId(),
+    type: 'video',
+    position: topLeftFromCenter(center, width, height),
+    width,
+    height,
+    data: { url: '', title: '', tags: [], createdAt: now, updatedAt: now },
   }
 }
 
@@ -113,6 +154,12 @@ export function createNode(kind: CreatableNodeKind, center: XYPosition, now: num
       return createTextCard(center, now)
     case 'link':
       return createLinkCard(center, now)
+    case 'checklist':
+      return createChecklist(center, now)
+    case 'shape':
+      return createShape(center, now)
+    case 'video':
+      return createVideo(center, now)
     case 'group':
       return createGroup(center, now)
   }
@@ -120,6 +167,10 @@ export function createNode(kind: CreatableNodeKind, center: XYPosition, now: num
 
 /** نسخة من العقدة بمعرّف جديد وتواريخ جديدة، دون حالات React Flow المؤقتة (dragging/measured/resizing). */
 function cloneNode(node: CanvasNode, now: number, id: string, position: XYPosition, parentId?: string): CanvasNode {
+  return syncLockFlags(cloneNodeContent(node, now, id, position, parentId))
+}
+
+function cloneNodeContent(node: CanvasNode, now: number, id: string, position: XYPosition, parentId?: string): CanvasNode {
   const base = {
     id,
     position,
@@ -138,6 +189,12 @@ function cloneNode(node: CanvasNode, now: number, id: string, position: XYPositi
       return { ...base, type: 'image', data: { ...node.data, tags: [...node.data.tags], ...fresh } }
     case 'link':
       return { ...base, type: 'link', data: { ...node.data, tags: [...node.data.tags], ...fresh } }
+    case 'video':
+      return { ...base, type: 'video', data: { ...node.data, tags: [...node.data.tags], ...fresh } }
+    case 'shape':
+      return { ...base, type: 'shape', data: { ...node.data, tags: [...node.data.tags], ...fresh } }
+    case 'checklist':
+      return { ...base, type: 'checklist', data: { ...node.data, tags: [...node.data.tags], items: node.data.items.map((item) => ({ ...item })), ...fresh } }
     case 'group':
       return {
         ...base,

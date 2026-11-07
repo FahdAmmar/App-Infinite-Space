@@ -10,6 +10,7 @@
 """
 import os, struct, sys, tempfile, zlib
 from playwright.sync_api import sync_playwright
+from _common import patch_browser, open_add_menu
 
 URL = os.environ.get('BASE_URL', 'http://127.0.0.1:4173/')
 TMP = tempfile.mkdtemp(prefix='infinitespace-acceptance-')
@@ -34,7 +35,7 @@ def make_png(path, w, h):
 PHOTO = os.path.join(TMP, 'photo.png'); make_png(PHOTO, 600, 400)
 
 with sync_playwright() as p:
-    browser = p.chromium.launch()
+    browser = patch_browser(p.chromium.launch())
     ctx = browser.new_context(viewport={'width': 1440, 'height': 900}, color_scheme='dark')
     pg = ctx.new_page(); logs = []
     pg.on('console', lambda m: logs.append((m.type, m.text)) if m.type == 'error' else None); pg.on('pageerror', lambda e: logs.append(('pageerror', str(e))))
@@ -165,7 +166,7 @@ with sync_playwright() as p:
         pg.set_viewport_size({'width': w, 'height': h}); pg.reload(); pg.wait_for_selector('.react-flow__node'); pg.wait_for_timeout(900)
         over = pg.evaluate('document.documentElement.scrollWidth - window.innerWidth')
         n0 = pg.locator('.react-flow__node-sticky').count()
-        pg.get_by_role('button', name='Sticky note', exact=True).click(); pg.mouse.click(w // 2, int(h * 0.45)); pg.wait_for_timeout(250); pg.keyboard.type(f'On the {label}'); pg.keyboard.press('Escape'); pg.wait_for_timeout(250)
+        open_add_menu(pg); pg.get_by_role('button', name='Sticky note', exact=True).click(); pg.mouse.click(w // 2, int(h * 0.45)); pg.wait_for_timeout(250); pg.keyboard.type(f'On the {label}'); pg.keyboard.press('Escape'); pg.wait_for_timeout(250)
         check(f'14. on a {label} ({w}px): no horizontal scrolling and a card can be added', over <= 1 and pg.locator('.react-flow__node-sticky').count() == n0 + 1, f'over={over}')
         saved()
         pg.get_by_role('link', name='Workspaces').first.click(); pg.wait_for_selector('article'); pg.wait_for_timeout(500)

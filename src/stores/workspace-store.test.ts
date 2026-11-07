@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LocalStorageAdapter } from '@/services/persistence/local-storage-adapter'
 import { StorageError, type KeyValueStore, type StorageAdapter } from '@/services/persistence/storage-adapter'

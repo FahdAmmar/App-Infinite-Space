@@ -60,10 +60,10 @@ InfiniteSpace is a frontend-only, local-first web app. A dashboard lists your wo
 ### Key features
 
 - **Dashboard:** create, rename, recolor, duplicate, and delete workspaces; search and sort; a live preview and item count on every card.
-- **Canvas:** pan, zoom, fit all, zoom to selection, optional minimap; sticky notes (six colors), text cards, image cards, link cards, tags, and dashed group frames that carry their cards.
+- **Canvas:** pan, zoom, fit all, zoom to selection, optional minimap; sticky notes (eight colors), text cards with light Markdown, image cards (card, sticker, or cover look), link cards, checklists, shapes, YouTube video cards (nothing loads until you press play), a status ring and locking on cards, tags, and dashed group frames that carry their cards.
 - **Connections:** curved, straight, or stepped lines; solid, dashed, or dotted; arrows at either end; gradient or solid colors; optional labels.
 - **Images:** add from the dock, drag files in, or paste; PNG, JPEG, WebP, GIF, and AVIF with size and pixel limits; resizing never distorts a picture. Large pictures are scaled down and stored as WebP to save space (animated ones are left alone, and the command palette can turn this off).
-- **Arranging:** copy, cut, and paste cards (also between workspaces), reattach a connection by dragging its end, align and distribute a selection, change layers, snap to the grid, and find cards by text or tag.
+- **Arranging:** copy, cut, and paste cards (also between workspaces), reattach a connection by dragging its end, align and distribute a selection, arrange it as a tree or in columns by status, see where a card goes and comes from, change layers, snap to the grid, and find cards by text or tag.
 - **Present and start fast:** press `P` to present: every group becomes a slide and the camera flies from one to the next. The Create workspace dialog starts blank or from a template (mind map, Kanban, SWOT, retrospective, roadmap).
 - **Fast creation:** drag a connection dot onto empty canvas to create a new connected card; paste a web address or text to turn it into link and note cards; press `Ctrl/⌘+K` for a command palette (every action, plus jumping to another workspace); click a tag on a card to fade every card without it.
 - **Navigate and share:** a right-click menu (long-press on touch), a focus mode that fades everything unrelated to the selected card (`F`), an outline list of groups and cards (`O`), group titles that stay readable when zoomed far out, links that open a workspace at a card, a search box on the dashboard that finds cards inside all workspaces, personal snippets to reuse selections, and a one-file read-only HTML copy of a workspace that opens offline.
@@ -73,7 +73,8 @@ InfiniteSpace is a frontend-only, local-first web app. A dashboard lists your wo
 - **Data safety:** export a workspace to a file and import it back, restore or download recovery copies, see how full browser storage is, and get a warning (with a choice of version) when two tabs edit the same workspace. A rendering error shows a recovery page instead of a blank screen.
 - **Accessibility and comfort:** keyboard operation, skip link, labelled controls, reduced-motion support, 44 px touch targets, layouts checked from 390 px to 1440 px.
 - **Scale:** workspaces hold up to 5,000 items and 10,000 connections; only visible cards are rendered.
-- **Polish:** restrained GSAP motion, a Magic UI-style card spotlight, and an optional Three.js dashboard backdrop that can be turned off.
+- **Offline and backup:** installable, works offline after the first visit (a service worker), asks before applying an update; a backup reminder, and backups to a folder you choose (Chromium) or as downloaded files.
+- **Polish:** restrained motion (Web Animations on the dashboard, GSAP in the editor), a Magic UI-style card spotlight, and an optional Three.js dashboard backdrop that can be turned off.
 
 ### Getting started
 
@@ -121,6 +122,7 @@ docs/                  Detailed documentation and screenshots
 | Document | Contents |
 | --- | --- |
 | [docs/FEATURES.md](docs/FEATURES.md) | Visual direction, implementation status by phase, everything that works today, keyboard shortcuts |
+| [docs/FEATURES-PHASE-18.md](docs/FEATURES-PHASE-18.md) | Status ring, locking, checklists, shapes, Markdown, YouTube cards, links panel, tree and column layouts |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technology and version decisions, code layout, key design decisions, deployment |
 | [docs/SECURITY.md](docs/SECURITY.md) | How links, images, text, and stored data are handled |
 | [docs/TESTING.md](docs/TESTING.md) | Unit tests, browser flows, the Definition of Done evidence, load test, what was not verified |
@@ -131,7 +133,7 @@ docs/                  Detailed documentation and screenshots
 
 ### Status
 
-The six build phases are complete (dashboard, canvas, relationships, saving and history, polish and accessibility, final verification). Phase 7 (data safety), most of Phase 8 (copy and paste, reattaching connections, align, distribute, snap, find, layers), the five quick wins of Phase 11, presentation mode and the template gallery (Phase 12), the UX fixes of Phase 15, and most of Phase 16 (right-click menu, focus branch, deep links, outline, semantic zoom, read-only HTML page, search in all workspaces, snippets) are implemented. 816 unit tests and the browser flows in headless Chromium cover them (see [docs/TESTING.md](docs/TESTING.md) for each flow's checks). Reading the code and running the app at phone size also corrected an earlier claim: the minimap was already hidden on phones; the real problem was a two-row zoom toolbar. Shape cards and snapshots from Phase 16 are not built. The deployment to Vercel has not been tried, and only Chromium was used. Data stays in one browser profile, so export a workspace to keep a copy.
+The six build phases are complete (dashboard, canvas, relationships, saving and history, polish and accessibility, final verification). Phase 7 (data safety), most of Phase 8 (copy and paste, reattaching connections, align, distribute, snap, find, layers), the five quick wins of Phase 11, presentation mode and the template gallery (Phase 12), the UX fixes of Phase 15, and most of Phase 16 (right-click menu, focus branch, deep links, outline, semantic zoom, read-only HTML page, search in all workspaces, snippets) are implemented. 816 unit tests and the browser flows in headless Chromium cover them (see [docs/TESTING.md](docs/TESTING.md) for each flow's checks). Reading the code and running the app at phone size also corrected an earlier claim: the minimap was already hidden on phones; the real problem was a two-row zoom toolbar. Shape cards and snapshots from Phase 16 are not built. The deployment to Vercel has not been tried, and only Chromium was used. Data stays in one browser profile, so export a workspace to keep a copy. Phase 18 added cards and tools inspired by Kinopio, Scrintal, and Miro (status ring, locking, checklists, shapes, Markdown, video cards, links panel, tree and column layouts); PNG/SVG and slide-deck export are not done yet.
 
 ## Future additions
 
@@ -145,11 +147,11 @@ Not implemented yet, by priority. The full roadmap with status marks is in [feat
 **2. Arabic, right-to-left, and offline (Phase 9)**
 
 - An Arabic, right-to-left interface with an Arabic web font and logical CSS properties.
-- Installable offline use (PWA).
+- Done already: installable offline use (PWA). Still missing: the Arabic dictionary and font.
 
 **3. Quality and tooling (Phase 10)**
 
-- A CI pipeline that runs lint, type check, unit tests, the build, and the browser flows.
+- Confirm the CI workflow (`.github/workflows/ci.yml`) on GitHub; it is written but has not run yet.
 - Port the Playwright flows to `@playwright/test`, and run them in Firefox and WebKit as well as Chromium.
 - More React component tests, and a pass with a real screen reader.
 

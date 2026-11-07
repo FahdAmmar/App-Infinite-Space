@@ -1,9 +1,9 @@
 import { Link } from 'react-router'
-import { FileText, Image as ImageIcon, Layers, Link as LinkIcon, StickyNote, Type } from 'lucide-react'
+import { FileText, Image as ImageIcon, Layers, Link as LinkIcon, ListChecks, Shapes, Video, StickyNote, Type } from 'lucide-react'
 import { buildCardLink } from '@/features/canvas/utils/card-link'
 import type { CardHit } from '../utils/card-search'
 
-const KIND_ICON = { sticky: StickyNote, text: Type, image: ImageIcon, link: LinkIcon, group: Layers } as const
+const KIND_ICON = { sticky: StickyNote, text: Type, image: ImageIcon, link: LinkIcon, checklist: ListChecks, shape: Shapes, video: Video, group: Layers } as const
 
 /** بطاقات من داخل المساحات تطابق البحث؛ النقر يفتح المساحة عند البطاقة نفسها (رابط عميق). */
 export function CardSearchResults({ hits, searching, query }: { hits: readonly CardHit[]; searching: boolean; query: string }) {

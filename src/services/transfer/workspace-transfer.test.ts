@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
 import type { WorkspaceMeta } from '@/features/workspaces/types/workspace'
 import { createWorkspaceMeta } from '@/features/workspaces/utils/factory'

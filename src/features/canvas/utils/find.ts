@@ -20,6 +20,12 @@ function textFields(node: CanvasNode): string[] {
       return [node.data.title, node.data.description, node.data.fileName]
     case 'link':
       return [node.data.title, node.data.description, node.data.url]
+    case 'video':
+      return [node.data.title, node.data.url]
+    case 'shape':
+      return [node.data.label]
+    case 'checklist':
+      return [node.data.title, ...node.data.items.map((item) => item.text)]
     case 'group':
       return [node.data.label]
   }

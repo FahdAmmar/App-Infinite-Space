@@ -20,7 +20,7 @@ export function FirstRunChecklist() {
   const steps = stepsFromKey(key)
 
   return (
-    <Panel position="bottom-left" className="mb-9! max-sm:hidden [@media(max-height:560px)]:hidden">
+    <Panel position="bottom-left" className="mb-[calc(2.25rem+var(--safe-bottom))]! max-sm:hidden [@media(max-height:560px)]:hidden">
       <section aria-label="Getting started" className="w-60 rounded-2xl border border-line bg-surface/90 p-3 shadow-pop backdrop-blur-md">
         <div className="flex items-center justify-between">
           <h2 className="px-1 text-sm font-semibold">Getting started</h2>

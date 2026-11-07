@@ -242,7 +242,7 @@ function WorkspaceForm({ mode, workspace, onCancel, onSubmit }: WorkspaceFormPro
         </div>
       </fieldset>
 
-      <div className="flex flex-wrap justify-end gap-3 pt-1">
+      <div className="sticky bottom-0 z-10 -mx-6 -mb-6 mt-5 flex flex-wrap justify-end gap-3 border-t border-line bg-raised px-6 py-4">
         <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>

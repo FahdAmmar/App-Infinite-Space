@@ -1,17 +1,20 @@
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { BorderBeam } from '@/components/magic/BorderBeam'
+import { TEMPLATES, type TemplateId } from '../templates/template-catalog'
 
 interface EmptyStateProps {
   onCreate: () => void
+  /** إنشاء مساحة من قالب بنقرة واحدة، فتكون أول نقرة مساحة جاهزة لا لوحة فارغة */
+  onPickTemplate: (id: TemplateId) => void
 }
 
 /** حالة البداية: دعوة واضحة للفعل مع رسم يشرح الفكرة (بطاقات متصلة بمنحنى متدرج كما في المرجع الأول). */
-export function EmptyState({ onCreate }: EmptyStateProps) {
+export function EmptyState({ onCreate, onPickTemplate }: EmptyStateProps) {
   return (
     <section
       aria-labelledby="empty-heading"
-      className="relative mx-auto grid max-w-3xl items-center gap-8 rounded-[28px] border border-dashed border-line bg-surface/60 p-8 sm:grid-cols-[1fr_auto] sm:p-10"
+      className="relative grid max-w-4xl items-center gap-8 rounded-[28px] border border-dashed border-line bg-surface/60 p-8 sm:grid-cols-[1fr_auto] sm:p-10"
     >
       {/* شعاع ضوئي واحد هادئ على حدود البطاقة الوحيدة في الشاشة: يوجّه النظر إلى الفعل الأول (Magic UI Border Beam) */}
       <BorderBeam size={120} duration={9} />
@@ -27,6 +30,16 @@ export function EmptyState({ onCreate }: EmptyStateProps) {
           <Plus className="size-5" aria-hidden="true" />
           Create workspace
         </Button>
+        <p className="mt-7 text-sm text-muted">Or start from a template</p>
+        <ul className="mt-2.5 flex flex-wrap gap-2">
+          {TEMPLATES.filter((template) => template.id !== 'blank').map((template) => (
+            <li key={template.id}>
+              <Button variant="secondary" size="sm" title={template.blurb} onClick={() => onPickTemplate(template.id)}>
+                {template.label}
+              </Button>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <svg viewBox="0 0 240 160" className="mx-auto w-56 text-ink sm:w-64" fill="none" aria-hidden="true">

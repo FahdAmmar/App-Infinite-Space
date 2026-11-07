@@ -9,6 +9,7 @@ import { useSnippetStore } from '@/stores/snippet-store'
 import { useWorkspaceStore } from '@/stores/workspace-store'
 import { createId } from '@/lib/id'
 import type { CanvasEdge } from '../types/edges'
+import { layoutColumnsByStatus, layoutTree } from '../utils/arrange'
 import { setHeldClipboard } from '../utils/clipboard'
 import { createSnippet, snippetToClipboard, type Snippet } from '../utils/snippets'
 import { useCanvasCommands } from '../hooks/useCanvasCommands'
@@ -76,10 +77,21 @@ export function CommandPalette({ workspaceId }: { workspaceId: string }) {
   const items = useMemo<PaletteItem[]>(() => {
     const state = () => api.getState()
     const ui = () => useUiStore.getState()
+    const arrangeSelection = (mode: 'tree' | 'columns') => {
+      const { nodes, edges, moveNodes } = state()
+      const selected = nodes.filter((node) => node.selected)
+      const placements = mode === 'tree' ? layoutTree(selected, nodes, edges) : layoutColumnsByStatus(selected, nodes)
+      if (placements.length > 0) moveNodes(placements)
+      else ui().pushToast('info', selected.filter((node) => node.type !== 'group').length < 2 ? 'Select at least two cards to arrange.' : 'The cards are already arranged.')
+    }
+    const selectedIds = () => state().nodes.filter((node) => node.selected).map((node) => node.id)
     const list: PaletteItem[] = [
       { id: 'add-sticky', title: 'Add sticky note', group: 'Create', hint: 'N', keywords: ['card', 'new'], run: () => commands.addNodeAtPointer('sticky') },
       { id: 'add-text', title: 'Add text card', group: 'Create', hint: 'T', keywords: ['card', 'new', 'writing'], run: () => commands.addNodeAtPointer('text') },
       { id: 'add-link', title: 'Add link card', group: 'Create', hint: 'L', keywords: ['url', 'web', 'address'], run: () => commands.addNodeAtPointer('link') },
+      { id: 'add-checklist', title: 'Add checklist', group: 'Create', hint: 'K', keywords: ['todo', 'tasks', 'list', 'checkbox'], run: () => commands.addNodeAtPointer('checklist') },
+      { id: 'add-video', title: 'Add YouTube video card', group: 'Create', hint: 'Y', keywords: ['youtube', 'movie', 'embed', 'clip'], run: () => commands.addNodeAtPointer('video') },
+      { id: 'add-shape', title: 'Add shape', group: 'Create', hint: 'S', keywords: ['rectangle', 'ellipse', 'circle', 'diamond', 'box'], run: () => commands.addNodeAtPointer('shape') },
       { id: 'add-image', title: 'Add image…', group: 'Create', keywords: ['picture', 'photo', 'upload'], run: () => void commands.pickAndAddImages('center') },
       { id: 'add-group', title: 'Add group', group: 'Create', keywords: ['frame', 'container', 'section'], run: () => commands.addNodeAtPointer('group') },
       { id: 'undo', title: 'Undo', group: 'Edit', hint: 'Ctrl/⌘ Z', run: () => state().undo() },
@@ -90,6 +102,13 @@ export function CommandPalette({ workspaceId }: { workspaceId: string }) {
       list.push(
         { id: 'duplicate', title: 'Duplicate selection', group: 'Edit', hint: 'Ctrl/⌘ D', keywords: ['copy', 'clone'], run: commands.duplicateSelection },
         { id: 'delete', title: 'Delete selection', group: 'Edit', hint: 'Del', keywords: ['remove'], run: commands.deleteSelection },
+        { id: 'arrange-tree', title: 'Arrange selection as a tree', group: 'Edit', keywords: ['mind map', 'layout', 'hierarchy', 'connections'], run: () => arrangeSelection('tree') },
+        { id: 'arrange-columns', title: 'Arrange selection in columns by status', group: 'Edit', keywords: ['kanban', 'board', 'layout', 'done', 'todo'], run: () => arrangeSelection('columns') },
+        { id: 'status-done', title: 'Mark selection as done', group: 'Edit', keywords: ['complete', 'finished', 'check', 'status'], run: () => state().setNodesStatus(selectedIds(), 'done') },
+        { id: 'status-doing', title: 'Mark selection as in progress', group: 'Edit', keywords: ['working', 'status', 'doing'], run: () => state().setNodesStatus(selectedIds(), 'doing') },
+        { id: 'status-none', title: 'Clear status of selection', group: 'Edit', keywords: ['reset', 'status'], run: () => state().setNodesStatus(selectedIds(), 'none') },
+        { id: 'lock', title: 'Lock selection', group: 'Edit', keywords: ['freeze', 'pin', 'protect'], run: () => state().setNodesLocked(selectedIds(), true) },
+        { id: 'unlock', title: 'Unlock selection', group: 'Edit', keywords: ['unfreeze', 'unpin'], run: () => state().setNodesLocked(selectedIds(), false) },
         { id: 'zoom-selection', title: 'Zoom to selection', group: 'View', hint: '⇧ 2', keywords: ['focus', 'center'], run: commands.centerOnSelection },
       )
     }

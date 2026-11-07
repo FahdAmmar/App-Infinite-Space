@@ -14,7 +14,7 @@ export function ExternalChangeBanner() {
   return (
     <div
       role="alert"
-      className="absolute inset-x-3 top-[4.5rem] z-30 mx-auto flex max-w-2xl flex-col gap-3 rounded-2xl border border-danger/60 bg-raised p-4 shadow-pop sm:flex-row sm:items-center sm:gap-4"
+      className="absolute inset-x-3 top-[calc(4.5rem+var(--safe-top))] z-30 mx-auto flex max-w-2xl flex-col gap-3 rounded-2xl border border-danger/60 bg-raised p-4 shadow-pop sm:flex-row sm:items-center sm:gap-4"
     >
       <TriangleAlert className="hidden size-5 shrink-0 text-danger sm:block" aria-hidden="true" />
       <div className="min-w-0 flex-1 space-y-1">

@@ -32,7 +32,7 @@ function StickyNoteNodeImpl({ id, data, selected }: NodeProps<StickyNote>) {
   } as CSSProperties
 
   return (
-    <NodeFrame id={id} type="sticky" selected={selected} editing={isEditing}>
+    <NodeFrame id={id} type="sticky" selected={selected} status={data.status ?? 'none'} locked={data.locked === true} editing={isEditing}>
       <div
         onDoubleClick={startEditing}
         style={style}

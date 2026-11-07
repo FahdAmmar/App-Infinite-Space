@@ -11,6 +11,7 @@ import { useUiStore } from '@/stores/ui-store'
 import { useWorkspaceStore } from '@/stores/workspace-store'
 import { exportViewerToFile, exportWorkspaceToFile } from '../actions/transfer-actions'
 import { DataDialog } from '../components/data/DataDialog'
+import { BackupReminder } from '../components/BackupReminder'
 import { DeleteWorkspaceDialog } from '../components/DeleteWorkspaceDialog'
 import { EmptyState } from '../components/EmptyState'
 import { CardSearchResults } from '../components/CardSearchResults'
@@ -85,13 +86,11 @@ export function DashboardPage() {
       const created = await createWorkspaceFromTemplate(input, template)
       if (!created) return
       setFormState(null)
-      pushToast('success', `Created “${created.name}” from the ${getTemplate(template).label} template.`)
       navigate(`/w/${created.id}`)
       return
     }
     const created = createWorkspace(input)
     setFormState(null)
-    pushToast('success', `Created “${created.name}”.`)
     navigate(`/w/${created.id}`)
   }
 
@@ -111,7 +110,7 @@ export function DashboardPage() {
       <DotGridBackground />
 
       {/* شريط عائم ثابت (مرجع 1 و4): شعار، بحث بشكل حبّة، السمة، وزر إنشاء أبيض بارز */}
-      <header className="sticky top-0 z-30 px-3 pt-3 sm:px-6 sm:pt-5">
+      <header className="sticky top-0 z-30 px-3 pt-[calc(0.75rem+var(--safe-top))] pr-[calc(0.75rem+var(--safe-right))] pl-[calc(0.75rem+var(--safe-left))] sm:px-6 sm:pt-[calc(1.25rem+var(--safe-top))] sm:pr-[calc(1.5rem+var(--safe-right))] sm:pl-[calc(1.5rem+var(--safe-left))]">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2.5 rounded-[28px] border border-line bg-surface/80 p-2 pl-4 shadow-pop backdrop-blur-xl">
           <Link to="/" aria-label="InfiniteSpace home" className="rounded-lg">
             <Logo />
@@ -147,9 +146,9 @@ export function DashboardPage() {
         </div>
       </header>
 
-      <main className="relative mx-auto max-w-6xl space-y-9 px-5 pt-10 pb-20 sm:px-8 sm:pt-14">
+      <main className="relative mx-auto max-w-6xl space-y-9 px-5 pt-10 pb-[calc(5rem+var(--safe-bottom))] sm:px-8 sm:pt-14">
         {/* مؤثر زخرفي اختياري خلف العنوان: يُخفى على الشاشات الصغيرة (بطارية وأداء) ولا يستقبل المؤشر */}
-        <BackgroundEffect className="absolute top-0 right-0 -z-10 hidden h-[360px] w-[min(46vw,520px)] opacity-80 md:block" />
+        <BackgroundEffect className="absolute top-0 right-0 -z-10 hidden h-[300px] w-[min(46vw,520px)] opacity-80 md:block" />
         <section aria-labelledby="page-heading" data-reveal="hero" className="max-w-2xl">
           <h1
             id="page-heading"
@@ -171,10 +170,17 @@ export function DashboardPage() {
           </div>
         ) : workspaces.length === 0 ? (
           <div data-reveal="card">
-            <EmptyState onCreate={() => setFormState({ mode: 'create' })} />
+            <EmptyState
+              onCreate={() => setFormState({ mode: 'create' })}
+              onPickTemplate={(id) => {
+                const info = getTemplate(id)
+                void handleSubmit({ name: info.suggestedName, description: '', color: info.color, icon: info.icon }, id)
+              }}
+            />
           </div>
         ) : (
           <>
+            <BackupReminder workspaces={workspaces} now={now} onOpenBackup={() => setDataOpen(true)} />
             {/* حين تظهر كل المساحات في «الأحدث» يكرر الصف القائمة التي تحته فلا نعرضه */}
             {!isSearching && workspaces.length > recent.length && <RecentList workspaces={recent} now={now} />}
 

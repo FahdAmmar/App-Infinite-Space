@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react'
-import gsap from 'gsap'
+import { EASE_BACK_OUT, enterAnimation } from '@/lib/enter-animation'
 
 /**
  * بطاقة تظهر بعد التحميل الأول (نسخ مساحة مثلاً) تدخل بحركة قصيرة كي يلاحظها المستخدم وسط الشبكة.
@@ -18,13 +18,9 @@ export function useNewCardEnter(listRef: RefObject<HTMLElement | null>, ids: rea
     const fresh = ids.filter((id) => !known.has(id))
     if (fresh.length === 0) return
 
-    const mm = gsap.matchMedia()
-    mm.add('(prefers-reduced-motion: no-preference)', () => {
-      const targets = Array.from(list.querySelectorAll<HTMLElement>('[data-workspace-id]')).filter((el) =>
-        fresh.includes(el.dataset.workspaceId ?? ''),
-      )
-      gsap.from(targets, { y: 20, scale: 0.96, opacity: 0, duration: 0.5, ease: 'back.out(1.6)', clearProps: 'transform,opacity' })
-    })
-    return () => mm.revert()
+    const targets = Array.from(list.querySelectorAll<HTMLElement>('[data-workspace-id]')).filter((el) =>
+      fresh.includes(el.dataset.workspaceId ?? ''),
+    )
+    return enterAnimation(targets, { y: 20, scale: 0.96, duration: 0.5, stagger: 0, easing: EASE_BACK_OUT })
   }, [listRef, ids, ready])
 }

@@ -16,8 +16,17 @@ export interface CanvasViewport {
  * لقطة اللوحة المحفوظة. العقد والوصلات عامة (unknown) عمداً على مستوى التخزين: طبقة التخزين لا تعرف
  * أنواع اللوحة، والتحقق الصارم يجري عند القراءة في features/canvas/persistence/canvas-codec.ts.
  */
+/**
+ * إصدار صيغة اللوحة المخزَّنة. 2 = حقلا status/locked الاختياريان وأنواع بطاقات أحدث.
+ * نكتب دائماً الأحدث، ونقرأ 1 و2 معاً (الإصدار 1 صالح كما هو؛ الحقول الجديدة اختيارية).
+ * سبب رفع الرقم مع أن القراءة متوافقة: نسخة أقدم من التطبيق ترفض اللوحة (فتُحفظ احتياطياً) بدل أن تقرأها وتُسقط
+ * الحقول الجديدة بصمت ثم تحفظها ناقصة.
+ */
+export const CANVAS_SCHEMA_VERSION = 2
+export const READABLE_CANVAS_VERSIONS: readonly number[] = [1, 2]
+
 export interface StoredCanvas {
-  schemaVersion: 1
+  schemaVersion: 1 | 2
   nodes: unknown[]
   edges: unknown[]
   viewport: CanvasViewport

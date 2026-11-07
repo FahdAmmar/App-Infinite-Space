@@ -66,12 +66,18 @@ describe('sanitizeWorkspace', () => {
         preview: [
           { x: 5, y: -1, w: 0.2, h: 0.2, kind: 'image' },
           { x: 0, y: 0, w: 'a', h: 0, kind: 'image' },
-          { x: 0, y: 0, w: 0, h: 0, kind: 'video' },
+          { x: 0, y: 0, w: 0, h: 0, kind: 'audio' }, // نوع غير معروف (كان 'video' قبل أن تصير بطاقة الفيديو نوعاً حقيقياً)
         ],
       },
       0,
     )
     expect(result?.preview).toEqual([{ x: 1, y: 0, w: 0.2, h: 0.2, kind: 'image' }])
+  })
+
+  it('keeps the preview kinds of the newer card types', () => {
+    const kinds = ['checklist', 'shape', 'video']
+    const result = sanitizeWorkspace({ ...valid, preview: kinds.map((kind) => ({ x: 0.1, y: 0.1, w: 0.2, h: 0.2, kind })) }, 0)
+    expect(result?.preview?.map((rect) => rect.kind)).toEqual(kinds)
   })
 
   it('ignores unknown extra fields (no prototype/field smuggling)', () => {

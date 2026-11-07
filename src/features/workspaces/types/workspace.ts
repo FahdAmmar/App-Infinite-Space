@@ -19,7 +19,7 @@ export const WORKSPACE_ICON_IDS = [
 ] as const
 export type WorkspaceIconId = (typeof WORKSPACE_ICON_IDS)[number]
 
-export type PreviewKind = 'sticky' | 'text' | 'image' | 'link' | 'group'
+export type PreviewKind = 'sticky' | 'text' | 'image' | 'link' | 'checklist' | 'shape' | 'video' | 'group'
 
 /**
  * مستطيل مصغّر في معاينة البطاقة. الإحداثيات مطبّعة بين 0 و 1 نسبةً لحدود المحتوى،

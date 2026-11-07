@@ -16,6 +16,7 @@ import {
   type WorkspaceMeta,
 } from '@/features/workspaces/types/workspace'
 import {
+  READABLE_CANVAS_VERSIONS,
   StorageError,
   type BackupInfo,
   type KeyValueStore,
@@ -68,6 +69,9 @@ const PREVIEW_KINDS: ReadonlySet<string> = new Set<PreviewKind>([
   'text',
   'image',
   'link',
+  'checklist',
+  'shape',
+  'video',
   'group',
 ])
 
@@ -173,7 +177,7 @@ export function parseWorkspacesPayload(raw: string, fallbackNow: number): Parsed
 }
 
 export function isStoredCanvas(value: unknown): value is StoredCanvas {
-  if (!isRecord(value) || value.schemaVersion !== SCHEMA_VERSION) return false
+  if (!isRecord(value) || typeof value.schemaVersion !== 'number' || !READABLE_CANVAS_VERSIONS.includes(value.schemaVersion)) return false
   if (!Array.isArray(value.nodes) || !Array.isArray(value.edges)) return false
   const { viewport } = value
   return (

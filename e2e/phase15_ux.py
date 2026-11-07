@@ -7,6 +7,7 @@
 """
 import os, sys
 from playwright.sync_api import sync_playwright
+from _common import patch_browser
 
 URL = os.environ.get('BASE_URL', 'http://127.0.0.1:4173/')
 results = []
@@ -25,7 +26,7 @@ def create_workspace(pg, name):
 
 
 with sync_playwright() as p:
-    browser = p.chromium.launch()
+    browser = patch_browser(p.chromium.launch())
     logs = []
 
     # ───── سطح المكتب ─────

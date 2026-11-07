@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { NODE_SIZES } from './constants'
 import { createEdge } from './edge-utils'
-import { createGroup, createImageCard, createLinkCard, createNode, createStickyNote, createTextCard, duplicateNodes } from './node-factory'
+import { withLocked, withStatus } from './card-flags'
+import { createChecklist, createShape, createVideo, createGroup, createImageCard, createLinkCard, createNode, createStickyNote, createTextCard, duplicateNodes } from './node-factory'
 
 describe('createStickyNote', () => {
   it('centers the note on the requested point and uses default dimensions', () => {
@@ -130,3 +131,66 @@ describe('duplicateNodes', () => {
   })
 })
 
+
+describe('createChecklist', () => {
+  it('starts empty and centered, and createNode builds one', () => {
+    const list = createChecklist({ x: 500, y: 300 }, 7)
+    const { width, height } = NODE_SIZES.checklist
+    expect(list).toMatchObject({ type: 'checklist', width, height, data: { title: '', items: [], tags: [], createdAt: 7, updatedAt: 7 } })
+    expect(list.position).toEqual({ x: Math.round(500 - width / 2), y: Math.round(300 - height / 2) })
+    expect(createNode('checklist', { x: 0, y: 0 }, 1).type).toBe('checklist')
+  })
+})
+
+describe('duplicateNodes with the new card features', () => {
+  it('copies checklist items deeply so editing the copy never touches the original', () => {
+    const original = { ...createChecklist({ x: 0, y: 0 }, 1), id: 'c' }
+    original.data = { ...original.data, items: [{ id: 'a', text: 'one', done: true }] }
+    const { nodes } = duplicateNodes([original], [original], [], 5)
+    const copy = nodes[0]
+    expect(copy?.type === 'checklist' && copy.data.items).toEqual([{ id: 'a', text: 'one', done: true }])
+    expect(copy?.type === 'checklist' && copy.data.items[0]).not.toBe(original.data.items[0])
+  })
+
+  it('a duplicate of a locked card is locked in data and in behavior (not draggable or deletable)', () => {
+    const locked = withLocked({ ...createStickyNote({ x: 0, y: 0 }, 1), id: 'l' }, true, 2)
+    const { nodes } = duplicateNodes([locked], [locked], [], 5)
+    expect(nodes[0]?.data.locked).toBe(true)
+    expect(nodes[0]?.draggable).toBe(false)
+    expect(nodes[0]?.deletable).toBe(false)
+  })
+
+  it('keeps the status of the card but gives the copy fresh timestamps', () => {
+    const done = withStatus({ ...createStickyNote({ x: 0, y: 0 }, 1), id: 's' }, 'done', 2)
+    const { nodes } = duplicateNodes([done], [done], [], 99)
+    expect(nodes[0]?.data.status).toBe('done')
+    expect(nodes[0]?.data.createdAt).toBe(99)
+  })
+})
+
+describe('createShape', () => {
+  it('creates a centered neutral rectangle by default, and createNode builds one', () => {
+    const shape = createShape({ x: 400, y: 200 }, 3)
+    const { width, height } = NODE_SIZES.shape
+    expect(shape).toMatchObject({ type: 'shape', width, height, data: { shape: 'rectangle', label: '', color: 'neutral', tags: [] } })
+    expect(shape.position).toEqual({ x: Math.round(400 - width / 2), y: Math.round(200 - height / 2) })
+    expect(createNode('shape', { x: 0, y: 0 }, 1).type).toBe('shape')
+  })
+
+  it('duplicates keep the kind and text', () => {
+    const original = { ...createShape({ x: 0, y: 0 }, 1, 'ellipse', 'red'), id: 's' }
+    original.data = { ...original.data, label: 'Hi' }
+    const { nodes } = duplicateNodes([original], [original], [], 9)
+    expect(nodes[0]?.type === 'shape' && nodes[0].data).toMatchObject({ shape: 'ellipse', label: 'Hi', color: 'red' })
+  })
+})
+
+describe('createVideo', () => {
+  it('starts empty and centered, and createNode builds one', () => {
+    const video = createVideo({ x: 400, y: 300 }, 4)
+    const { width, height } = NODE_SIZES.video
+    expect(video).toMatchObject({ type: 'video', width, height, data: { url: '', title: '', tags: [], createdAt: 4, updatedAt: 4 } })
+    expect(video.position).toEqual({ x: Math.round(400 - width / 2), y: Math.round(300 - height / 2) })
+    expect(createNode('video', { x: 0, y: 0 }, 1).type).toBe('video')
+  })
+})

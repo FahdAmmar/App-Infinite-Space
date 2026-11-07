@@ -7,7 +7,7 @@ paths:
 
 ## Model
 
-- `CanvasNode` is a discriminated union: `sticky | text | image | link | group`, layered on React Flow's node type. `CanvasEdge` carries `CanvasEdgeData` (color, dashed or dotted, arrows, label).
+- `CanvasNode` is a discriminated union: `sticky | text | image | link | checklist | shape | video | group`, layered on React Flow's node type. `CanvasEdge` carries `CanvasEdgeData` (color, dashed or dotted, arrows, label).
 - Sizes, limits, and field caps live in `utils/constants.ts` (`NODE_SIZES`, `IMAGE_LIMITS`, `CANVAS_LIMITS`, `MAX_FILES_PER_DROP`, length and tag caps). Change a number there, never as a literal in a component.
 - `CreatableNodeKind` excludes `image`: images enter only through the upload pipeline (`uploads/`), which validates before a node exists.
 - Node and edge data are immutable. Produce new objects; never mutate a node in place.

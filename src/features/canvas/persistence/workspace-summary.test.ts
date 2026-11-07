@@ -54,6 +54,15 @@ describe('summarizeCanvas', () => {
     expect((preview[0]?.h ?? 0) * 48).toBeGreaterThan((preview[0]?.w ?? 0) * 88) // أطول من عرضها
   })
 
+  it('sticker and cover images have no header chrome in the estimate', () => {
+    const base = createImageCard({ x: 0, y: 0 }, 1, { imageId: 'i', fileName: 'a', naturalWidth: 200, naturalHeight: 100, width: 200 })
+    const card = summarizeCanvas([{ ...base, id: 'a' }]).preview[0]
+    const sticker = summarizeCanvas([{ ...base, id: 'b', data: { ...base.data, appearance: 'frameless' as const } }]).preview[0]
+    expect(card).toBeDefined()
+    expect(sticker).toBeDefined()
+    expect((sticker?.h ?? 0) * (card?.w ?? 1)).toBeLessThan((card?.h ?? 0) * (sticker?.w ?? 1))
+  })
+
   it('caps the rectangles for big canvases but still counts every node', () => {
     const many = Array.from({ length: PREVIEW_MAX_RECTS + 25 }, (_, i) => sticky(`n${i}`, (i % 10) * 300, Math.floor(i / 10) * 300))
     const { nodeCount, preview } = summarizeCanvas(many)

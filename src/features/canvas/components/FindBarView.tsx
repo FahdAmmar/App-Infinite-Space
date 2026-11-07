@@ -32,7 +32,7 @@ export function FindBarView({ query, position, total, inputRef, onQueryChange, o
   return (
     <div
       role="search"
-      className="absolute inset-x-3 top-[4.5rem] z-20 mx-auto flex w-fit max-w-[92vw] items-center gap-1 rounded-2xl border border-line bg-raised p-1.5 shadow-pop"
+      className="absolute inset-x-3 top-[calc(4.5rem+var(--safe-top))] z-20 mx-auto flex w-fit max-w-[92vw] items-center gap-1 rounded-2xl border border-line bg-raised p-1.5 shadow-pop"
     >
       <Search className="ms-2 size-4 shrink-0 text-muted" aria-hidden="true" />
       <input

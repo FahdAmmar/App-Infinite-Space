@@ -1,7 +1,10 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 import { blobToBase64 } from '@/lib/base64'
 import { edge, imageNode, linkNode, pngBlob, stickyNode } from './fixtures'
-import { PACKAGE_FORMAT, makeExportFileName, parsePackage } from './workspace-package'
+import { PACKAGE_FORMAT, PACKAGE_VERSION, buildPackage, makeExportFileName, parsePackage } from './workspace-package'
+import { createStickyNote } from '@/features/canvas/utils/node-factory'
+import { withLocked, withStatus } from '@/features/canvas/utils/card-flags'
 
 async function validImage() {
   return { type: 'image/png', data: await blobToBase64(pngBlob()) }
@@ -64,7 +67,7 @@ describe('parsePackage: rejects unusable files with a clear reason', () => {
     ['a wrong format tag', JSON.stringify({ format: 'other', version: 1 }), /isn't an InfiniteSpace/],
     ['a missing version', JSON.stringify({ format: PACKAGE_FORMAT }), /invalid version/],
     ['a fractional version', JSON.stringify({ format: PACKAGE_FORMAT, version: 1.5 }), /invalid version/],
-    ['a newer version', JSON.stringify({ format: PACKAGE_FORMAT, version: 2, canvas: { nodes: [] } }), /newer version/],
+    ['a newer version', JSON.stringify({ format: PACKAGE_FORMAT, version: 3, canvas: { nodes: [] } }), /newer version/],
     ['no canvas', JSON.stringify({ format: PACKAGE_FORMAT, version: 1 }), /no canvas/],
     ['nodes that are not an array', JSON.stringify({ format: PACKAGE_FORMAT, version: 1, canvas: { nodes: {} } }), /no canvas/],
   ])('rejects %s', (_label, text, message) => {
@@ -181,5 +184,25 @@ describe('makeExportFileName', () => {
   it('caps a long name', () => {
     const name = makeExportFileName('x'.repeat(200), date)
     expect(name.length).toBeLessThanOrEqual(60 + '-2026-10-27.infinitespace.json'.length)
+  })
+})
+
+describe('package version 2: status and lock', () => {
+  it('writes the current version and a status/lock survives export then import', () => {
+    const note = withLocked(withStatus({ ...createStickyNote({ x: 0, y: 0 }, 1), id: 'n1' }, 'done', 2), true, 3)
+    const built = buildPackage({
+      workspace: { name: 'W', description: '', color: 'rose', icon: 'compass' },
+      nodes: [note],
+      edges: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      images: {},
+      exportedAt: 4,
+    })
+    expect(built.version).toBe(PACKAGE_VERSION)
+    expect(PACKAGE_VERSION).toBe(2)
+    const out = parsed(JSON.stringify(built))
+    expect(out.canvas.nodes[0]?.data.status).toBe('done')
+    expect(out.canvas.nodes[0]?.data.locked).toBe(true)
+    expect(out.canvas.nodes[0]?.draggable).toBe(false)
   })
 })

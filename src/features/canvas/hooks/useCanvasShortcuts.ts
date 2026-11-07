@@ -92,6 +92,21 @@ export function useCanvasShortcuts(commands: CanvasCommands): void {
           event.preventDefault()
           commands.addNodeAtPointer('link')
           break
+        case 'y':
+        case 'Y':
+          event.preventDefault()
+          commands.addNodeAtPointer('video')
+          break
+        case 's':
+        case 'S':
+          event.preventDefault()
+          commands.addNodeAtPointer('shape')
+          break
+        case 'k':
+        case 'K':
+          event.preventDefault()
+          commands.addNodeAtPointer('checklist')
+          break
         case 'g':
         case 'G':
           event.preventDefault()

@@ -150,6 +150,7 @@ Shape cards, snapshots, guide lines while dragging, locking a card, export of th
 | `V` / `H` / `C` | Select tool / Hand tool / Connect tool |
 | `N` / `T` | New sticky note / text card at the pointer |
 | `L` / `G` | New link card / group at the pointer |
+| `K` / `S` / `Y` | New checklist / shape / YouTube video card at the pointer |
 | `I` | Add images from your device |
 | Drop or paste an image | Add it to the canvas |
 | Drag from a card's dot | Connect two cards, or create a connected card on empty canvas |
@@ -175,3 +176,14 @@ Shape cards, snapshots, guide lines while dragging, locking a card, export of th
 | `?` | Show the shortcuts list |
 
 Shortcuts are inactive while typing in a field, while a node is being edited, and while a dialog is open.
+
+## Phase 17: offline, backup, and phone polish
+
+- **Offline and install.** After the first visit the app opens without a connection (dashboard and editor) and can be installed. When a new version is deployed it waits in the background; a message offers *Reload*, so the code never changes while you are editing. While offline a message says your work is still saved on the device.
+- **Backup.** *Data & backup* has a Backup section. In Chromium, pick a folder and each workspace is kept there as a full export file (importable by the app), refreshed every few minutes while the app is open. Other browsers download one file per workspace. If you have not backed up for 7 days, the dashboard shows a reminder you can snooze for 3 days.
+- **Phones.** Below 640 px the five creation tools hide behind one **+** button. Floating bars keep clear of notches and the home indicator.
+- **Dashboard.** The empty state lists the five templates; one click opens a populated workspace. Creating a workspace no longer shows a toast, because opening it is the confirmation.
+
+## Phase 18
+
+Status ring, locking, checklists, shapes, light Markdown, YouTube cards, the links panel, and tree and column layouts are described in [FEATURES-PHASE-18.md](FEATURES-PHASE-18.md).

@@ -49,7 +49,7 @@ vercel --prod   # production deployment
 | HTML revalidated on every load | A new deployment is picked up at once. |
 | `nosniff`, `Referrer-Policy`, `X-Frame-Options: DENY`, `Cross-Origin-Opener-Policy`, `Permissions-Policy` | Standard hardening; the app uses no camera, microphone, or location. |
 | Enforced CSP: `object-src`, `base-uri`, `form-action`, `frame-ancestors` | Directives that cannot affect how the app runs. |
-| Full CSP in **Report-Only** | See below. |
+| Full CSP in **Report-Only** | See below. It includes `frame-src https://www.youtube-nocookie.com` for the video card; when you promote the policy, keep that directive. |
 
 Vercel adds HTTPS and `Strict-Transport-Security` itself.
 
@@ -69,6 +69,10 @@ one inline script), but it could not be tried in a browser here, so it is not en
 
 If the inline script in `index.html` ever changes, its hash in the policy must change too; `deploy:check` fails
 when they differ.
+
+## Offline use and updates
+
+The build writes `dist/sw.js` (from `src/pwa/sw.template.js`) and the app registers it in production only. It precaches the built files except the decorative 3D chunk and serves pages network-first (falling back to the cached shell after 4 seconds or when offline). A new deployment installs in the background; the app shows a "new version is ready" message and switches only when the user clicks *Reload*. `/sw.js` and `/manifest.webmanifest` fall under the existing no-cache rule for non-asset files, so an update is never hidden by the HTTP cache. After the first deployment, open DevTools → Application → Service Workers once and confirm it is active. `npm run size:check` fails the build if a chunk grows past its budget.
 
 ## Data belongs to one address
 

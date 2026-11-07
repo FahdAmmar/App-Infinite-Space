@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Copy, ExternalLink, Layers, Link2, Maximize2, Replace, StickyNote as StickyIcon, Trash2, Type } from 'lucide-react'
+import { CircleDashed, CircleDot, CircleCheck, Copy, ExternalLink, Layers, Link2, ListChecks, Lock, Shapes, Maximize2, Replace, StickyNote as StickyIcon, Trash2, Type, Unlock, Video } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useCanvasStore, useCanvasStoreApi } from '@/stores/canvas-store-context'
 import { useImageUrl } from '../../hooks/useImageUrl'
@@ -16,15 +16,76 @@ import {
   CONTENT_MAX_LENGTH,
   URL_MAX_LENGTH,
 } from '../../utils/constants'
+import { getStatus, isLocked } from '../../utils/card-flags'
+import { getNodeLinks, type LinkEntry } from '../../utils/links'
 import { getAbsolutePosition, getNodeSize } from '../../utils/group-utils'
 import { getDisplayHost, normalizeUrl } from '../../utils/link-url'
-import { ColorSwatches, CommitField, NumberField, PanelSection, ReadOnlyValue, TagEditor } from './controls'
+import { parseYouTubeUrl } from '../../utils/video-url'
+import { useMemo } from 'react'
+import { ColorSwatches, CommitField, NumberField, PanelSection, ReadOnlyValue, Segmented, TagEditor } from './controls'
+
+/** لوحة «الروابط» (مرجع Scrintal): ما يخرج من البطاقة وما يصل إليها، والنقر ينقلك إلى البطاقة الأخرى */
+function LinksSection({ nodeId, commands }: { nodeId: string; commands: CanvasCommands }) {
+  const nodes = useCanvasStore((state) => state.nodes)
+  const edges = useCanvasStore((state) => state.edges)
+  const links = useMemo(() => getNodeLinks(nodeId, nodes, edges), [nodeId, nodes, edges])
+  if (links.outgoing.length === 0 && links.incoming.length === 0) return null
+
+  const list = (title: string, entries: LinkEntry[]) =>
+    entries.length === 0 ? null : (
+      <div className="space-y-1">
+        <p className="text-xs text-muted">{title}</p>
+        <ul className="space-y-0.5">
+          {entries.map((entry) => (
+            <li key={entry.edgeId}>
+              <button
+                type="button"
+                onClick={() => commands.focusNode(entry.nodeId)}
+                className="flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-start text-sm transition-colors hover:bg-raised"
+              >
+                <span dir="auto" className="min-w-0 flex-1 truncate">{entry.label}</span>
+                {entry.edgeLabel !== '' && <span dir="auto" className="max-w-[40%] truncate text-xs text-muted">{entry.edgeLabel}</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+
+  return (
+    <PanelSection title="Links">
+      {list('Goes to', links.outgoing)}
+      {list('Comes from', links.incoming)}
+    </PanelSection>
+  )
+}
+
+const STATUS_OPTIONS = [
+  { id: 'none', label: 'None', icon: CircleDashed },
+  { id: 'doing', label: 'In progress', icon: CircleDot },
+  { id: 'done', label: 'Done', icon: CircleCheck },
+] as const
+
+const SHAPE_OPTIONS = [
+  { id: 'rectangle', label: 'Rectangle' },
+  { id: 'ellipse', label: 'Ellipse' },
+  { id: 'diamond', label: 'Diamond' },
+] as const
+
+const IMAGE_APPEARANCE_OPTIONS = [
+  { id: 'card', label: 'Card' },
+  { id: 'frameless', label: 'Sticker' },
+  { id: 'cover', label: 'Cover' },
+] as const
 
 const NODE_TITLES: Record<CanvasNode['type'], { label: string; icon: ReactNode }> = {
   sticky: { label: 'Sticky note', icon: <StickyIcon className="size-4" aria-hidden="true" /> },
   text: { label: 'Text card', icon: <Type className="size-4" aria-hidden="true" /> },
   image: { label: 'Image', icon: <Maximize2 className="size-4" aria-hidden="true" /> },
   link: { label: 'Link', icon: <Link2 className="size-4" aria-hidden="true" /> },
+  checklist: { label: 'Checklist', icon: <ListChecks className="size-4" aria-hidden="true" /> },
+  video: { label: 'Video', icon: <Video className="size-4" aria-hidden="true" /> },
+  shape: { label: 'Shape', icon: <Shapes className="size-4" aria-hidden="true" /> },
   group: { label: 'Group', icon: <Layers className="size-4" aria-hidden="true" /> },
 }
 
@@ -47,7 +108,7 @@ const STICKY_SWATCHES = STICKY_COLOR_IDS.map((id) => ({
 }))
 
 /** الحجم والموضع: مشتركان بين كل الأنواع (الصور بالعرض فقط لأن ارتفاعها يتبع نسبتها). */
-function GeometrySection({ node }: { node: CanvasNode }) {
+function GeometrySection({ node, locked }: { node: CanvasNode; locked: boolean }) {
   const api = useCanvasStoreApi()
   const parent = useCanvasStore((state) => (node.parentId ? state.nodes.find((n) => n.id === node.parentId) : undefined))
   const size = getNodeSize(node)
@@ -62,6 +123,7 @@ function GeometrySection({ node }: { node: CanvasNode }) {
           value={size.width}
           min={limits.minWidth}
           max={limits.maxWidth}
+          disabled={locked}
           onCommit={(width) => api.getState().resizeNode(node.id, { width })}
         />
         {node.type === 'image' ? (
@@ -72,6 +134,7 @@ function GeometrySection({ node }: { node: CanvasNode }) {
             value={size.height}
             min={limits.minHeight}
             max={limits.maxHeight}
+            disabled={locked}
             onCommit={(height) => api.getState().resizeNode(node.id, { height })}
           />
         )}
@@ -158,6 +221,17 @@ function Fields({ node, commands }: { node: CanvasNode; commands: CanvasCommands
               </Button>
             </div>
           </PanelSection>
+          <PanelSection title="Look">
+            <Segmented
+              label="Image look"
+              options={IMAGE_APPEARANCE_OPTIONS}
+              value={node.data.appearance ?? 'card'}
+              onChange={(appearance) => update(node.id, 'image', { appearance: appearance === 'card' ? undefined : appearance })}
+            />
+            <p className="text-xs text-muted">
+              Sticker shows the picture alone (transparent PNGs keep their shape). Cover puts the title on the picture.
+            </p>
+          </PanelSection>
           <PanelSection title="Caption">
             <CommitField label="Title" value={node.data.title} maxLength={TITLE_MAX_LENGTH} onCommit={(title) => update(node.id, 'image', { title })} />
             <CommitField label="Description" multiline value={node.data.description} maxLength={DESCRIPTION_MAX_LENGTH} onCommit={(description) => update(node.id, 'image', { description })} />
@@ -205,6 +279,59 @@ function Fields({ node, commands }: { node: CanvasNode; commands: CanvasCommands
         </>
       )
     }
+    case 'video':
+      return (
+        <>
+          <PanelSection title="Video">
+            <CommitField
+              label="YouTube link"
+              value={node.data.url}
+              maxLength={URL_MAX_LENGTH}
+              placeholder="https://youtu.be/…"
+              dir="ltr"
+              parse={(draft) => {
+                if (draft.trim() === '') return { ok: true, value: '' }
+                const video = parseYouTubeUrl(draft)
+                return video ? { ok: true, value: video.url } : { ok: false, error: 'Enter a YouTube link (youtube.com or youtu.be).' }
+              }}
+              onCommit={(url) => update(node.id, 'video', { url })}
+            />
+            <CommitField label="Title" value={node.data.title} maxLength={TITLE_MAX_LENGTH} onCommit={(title) => update(node.id, 'video', { title })} />
+            <p className="text-xs text-muted">Nothing is loaded from YouTube until you press play on the card.</p>
+          </PanelSection>
+          <PanelSection title="Tags">
+            <TagEditor tags={node.data.tags} onChange={(tags) => update(node.id, 'video', { tags })} />
+          </PanelSection>
+        </>
+      )
+    case 'shape':
+      return (
+        <>
+          <PanelSection title="Shape">
+            <Segmented label="Shape kind" options={SHAPE_OPTIONS} value={node.data.shape} onChange={(shape) => update(node.id, 'shape', { shape })} />
+            <CommitField label="Text" value={node.data.label} maxLength={TITLE_MAX_LENGTH} onCommit={(label) => update(node.id, 'shape', { label })} />
+            <p className="text-xs text-muted">Color</p>
+            <ColorSwatches label="Shape color" options={STICKY_SWATCHES} value={node.data.color} onChange={(color) => update(node.id, 'shape', { color })} />
+          </PanelSection>
+          <PanelSection title="Tags">
+            <TagEditor tags={node.data.tags} onChange={(tags) => update(node.id, 'shape', { tags })} />
+          </PanelSection>
+        </>
+      )
+    case 'checklist':
+      return (
+        <>
+          <PanelSection title="Checklist">
+            <CommitField label="Title" value={node.data.title} maxLength={TITLE_MAX_LENGTH} onCommit={(title) => update(node.id, 'checklist', { title })} />
+            <p className="text-xs text-muted">
+              {node.data.items.filter((item) => item.done).length} of {node.data.items.length} done. Add, tick and edit items directly on the card.
+            </p>
+          </PanelSection>
+          <PanelSection title="Tags">
+            <TagEditor tags={node.data.tags} onChange={(tags) => update(node.id, 'checklist', { tags })} />
+          </PanelSection>
+        </>
+      )
     case 'group':
       return (
         <>
@@ -227,10 +354,23 @@ function Fields({ node, commands }: { node: CanvasNode; commands: CanvasCommands
 
 /** لوحة خصائص عقدة واحدة: حقول النوع، ثم الحجم والموضع، ثم الإجراءات. */
 export function NodeProperties({ node, commands }: { node: CanvasNode; commands: CanvasCommands }) {
+  const api = useCanvasStoreApi()
+  const locked = isLocked(node)
   return (
     <>
       <Fields node={node} commands={commands} />
-      <GeometrySection node={node} />
+      {node.type !== 'group' && (
+        <PanelSection title="Status">
+          <Segmented
+            label="Card status"
+            options={STATUS_OPTIONS}
+            value={getStatus(node)}
+            onChange={(status) => api.getState().setNodesStatus([node.id], status)}
+          />
+        </PanelSection>
+      )}
+      <LinksSection nodeId={node.id} commands={commands} />
+      <GeometrySection node={node} locked={locked} />
       <PanelSection title="Actions">
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" size="sm" onClick={commands.duplicateSelection}>
@@ -243,7 +383,16 @@ export function NodeProperties({ node, commands }: { node: CanvasNode; commands:
               Connect to…
             </Button>
           )}
-          <Button variant="secondary" size="sm" onClick={commands.deleteSelection} className="hover:text-danger">
+          <Button
+            variant="secondary"
+            size="sm"
+            aria-pressed={locked}
+            onClick={() => api.getState().setNodesLocked([node.id], !locked)}
+          >
+            {locked ? <Unlock className="size-4" aria-hidden="true" /> : <Lock className="size-4" aria-hidden="true" />}
+            {locked ? 'Unlock' : 'Lock'}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={commands.deleteSelection} disabled={locked} className="hover:text-danger">
             <Trash2 className="size-4" aria-hidden="true" />
             {node.type === 'image' ? 'Delete image' : 'Delete'}
           </Button>

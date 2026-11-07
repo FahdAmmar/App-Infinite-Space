@@ -67,6 +67,9 @@ const reportOnly = valueOf(page, 'Content-Security-Policy-Report-Only') ?? ''
 const full = [reportOnly, enforced].find((policy) => policy.includes("default-src 'self'")) ?? ''
 check('a full CSP is present (report-only, or enforced after promotion)', full.includes("default-src 'self'") && full.includes("script-src 'self'"))
 check('the full CSP allows blob: images (cards show stored pictures)', /img-src[^;]*blob:/.test(full))
+// بطاقة الفيديو تضمّن مشغّل YouTube عند النقر فقط: الإطارات مسموحة من هذا النطاق وحده، لا أي نطاق آخر ولا علامة بدل
+const frameSrc = /frame-src ([^;]*)/.exec(full)?.[1]?.trim() ?? ''
+check('the full CSP lets frames load only from youtube-nocookie (video card)', frameSrc === 'https://www.youtube-nocookie.com', `frame-src is "${frameSrc}"`)
 check("the full CSP has no 'unsafe-eval' and no wildcard script source", !/unsafe-eval/.test(full) && !/script-src[^;]*\*/.test(full))
 
 // ───── ناتج البناء ─────
@@ -92,6 +95,38 @@ if (!existsSync(indexPath)) {
   const offenders = scripts.filter((f) => /\beval\(|new Function\(/.test(read(join(assets, f))))
   check('no eval() or new Function() in the bundle (a strict CSP stays possible)', offenders.length === 0, offenders.join(', '))
   check('fonts are bundled locally (no external font host)', !/fonts\.(googleapis|gstatic)\.com/.test(read(indexPath)) && readdirSync(assets).some((f) => f.endsWith('.woff2')))
+
+  // ───── PWA: العمل دون اتصال والتثبيت ─────
+  check('index.html links the web app manifest', /<link[^>]+rel="manifest"[^>]+href="\/manifest\.webmanifest"/.test(html))
+  const manifestPath = join(dist, 'manifest.webmanifest')
+  let manifest = null
+  try {
+    manifest = JSON.parse(read(manifestPath))
+  } catch {
+    /* يُبلَّغ عنه في الفحص التالي */
+  }
+  check('manifest.webmanifest is valid JSON with name, start_url and standalone display', Boolean(manifest?.name && manifest.start_url === '/' && manifest.display === 'standalone'))
+  const icons = manifest?.icons ?? []
+  check('manifest has 192px and 512px icons plus a maskable one', ['192x192', '512x512'].every((size) => icons.some((icon) => icon.sizes === size)) && icons.some((icon) => icon.purpose === 'maskable'))
+  check('every icon file in the manifest exists in dist', icons.length > 0 && icons.every((icon) => existsSync(join(dist, icon.src))), icons.map((icon) => icon.src).join(', '))
+  const swPath = join(dist, 'sw.js')
+  check('dist/sw.js was generated', existsSync(swPath))
+  if (existsSync(swPath)) {
+    const sw = read(swPath)
+    check('sw.js has no unreplaced placeholders', !sw.includes('__BUILD_ID__') && !sw.includes('__PRECACHE__'))
+    const literal = sw.match(/JSON\.parse\('((?:[^'\\]|\\.)*)'\)/)?.[1]
+    let precache = []
+    try {
+      precache = JSON.parse(literal.replace(/\\(['\\])/g, '$1'))
+    } catch {
+      /* يُبلَّغ عنه في الفحص التالي */
+    }
+    check('sw.js precaches the app shell and every entry exists in dist', precache.includes('/index.html') && precache.every((url) => existsSync(join(dist, url.slice(1)))), `${precache.length} entries`)
+    check('sw.js precaches the editor chunk (it must open offline)', precache.some((url) => /\/WorkspaceEditorPage-[^/]*\.js$/.test(url)))
+    check('sw.js does not precache the decorative Three.js chunk or source maps', !precache.some((url) => /createBackgroundScene|\.map$/.test(url)))
+  }
+  const swHeaders = headersFor('/sw.js')
+  check('/sw.js is revalidated on every load (an update must never be hidden by the HTTP cache)', /max-age=0/.test(valueOf(swHeaders, 'Cache-Control') ?? ''))
 }
 
 // ───── المشروع ─────

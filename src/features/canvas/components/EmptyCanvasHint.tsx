@@ -13,7 +13,7 @@ export function EmptyCanvasHint({ commands }: { commands: CanvasCommands }) {
   if (!isEmpty) return null
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-[4] grid place-items-center p-6 max-sm:pl-20">
+    <div className="pointer-events-none absolute inset-0 z-[4] grid place-items-center p-6 max-sm:pl-24">
       <section aria-labelledby="canvas-empty-heading" className="max-w-sm text-center">
         <h2 id="canvas-empty-heading" className="font-display text-2xl font-bold tracking-tight">
           A blank canvas

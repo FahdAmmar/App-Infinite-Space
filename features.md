@@ -52,17 +52,20 @@ recoverable and moveable.
 - ⬜ **Logical CSS properties.** Replace the physical `ml-`, `pr-`, `left-`, `right-`, and `text-left` classes so
   mirroring does not need per-component fixes.
 - ⬜ **Arabic web font** bundled locally (Cairo or Tajawal), loaded only for Arabic.
-- ⬜ **Installable and offline.** Web app manifest, service worker that caches the built files, an offline indicator,
-  and an update prompt.
+- ✅ **Installable and offline.** Web app manifest and icons, a service worker generated at build time that caches the
+  built files, an "offline" message, and an update prompt that waits for the user (see Phase 17).
 
 ## Phase 10: Quality and tooling
 
-- ⬜ **Port the browser flows to `@playwright/test`** with an `npm run e2e` script, so one command runs them.
-- ⬜ **Continuous integration.** A workflow running lint, type check, unit tests, the build, and the browser flows.
+- ⬜ **Port the browser flows to `@playwright/test`** (parallel runs, traces). `npm run e2e` already runs every Python
+  flow with one command.
+- ✅ **Continuous integration.** `.github/workflows/ci.yml` runs type check, lint, tests, build, deploy and size checks,
+  docs check, audit, and the browser flows. Written in Phase 17; it has not run on GitHub yet.
 - ⬜ **Coverage threshold** on the pure rules (codec, history, autosave, transfer) so it cannot silently drop.
 - ⬜ **More React component tests.** The `src/test-utils/render.ts` helper added in Phase 7 is the starting point.
 - ⬜ **Accessibility checks in the browser flows** with axe-core on every new screen.
-- ⬜ **Faster unit tests.** Run the pure-logic files in the `node` environment instead of creating a DOM per file.
+- ✅ **Faster unit tests.** The default Vitest environment is `node`; the 20 files that need a DOM declare
+  `// @vitest-environment jsdom`. The full run went from 112 s to between 37 and 59 s in two later runs (one-core sandbox).
 - ⬜ **Firefox and WebKit runs** of the browser flows, and a pass with a real screen reader.
 
 ## Phase 11: Quick wins
@@ -85,13 +88,14 @@ Small changes with a large effect on how fast the canvas feels. Each one ships w
 
 - ✅ **Presentation mode.** Each group is a slide; arrow keys fly the camera from group to group. Press `P` (or use the
   palette): slides run in reading order, the interface hides, editing is off, and `Esc` restores the previous view.
-- ⬜ **Mind-map keyboard flow.** `Tab` adds a child, `Enter` a sibling, plus "Arrange as tree" (one undo step). Open
-  question: `Tab` is how keyboard users move focus between cards, so the child shortcut needs another key.
+- ⬜ **Mind-map keyboard flow.** `Tab` adds a child, `Enter` a sibling. "Arrange as tree" (one undo step) shipped in
+  Phase 18; the keys are still open, because `Tab` is how keyboard users move focus between cards, so the child
+  shortcut needs another key.
 - ✅ **Template gallery.** Mind map, Kanban, SWOT, retrospective, roadmap, chosen in the Create workspace dialog. They are
   built from the same card factories and go through the existing import validation, so there is no new data path.
-- ⬜ **Light Markdown in text cards and a checklist card** with progress. Rendered without raw HTML.
-- ⬜ **Status and due date on cards** (idea, doing, done). Needs a saved-data change, so it ships together with card
-  locking in one codec version.
+- ✅ **Light Markdown in text cards and a checklist card** with progress. Rendered without raw HTML (Phase 18).
+- ✅ **Status on cards** (none, in progress, done) and **card locking**, in one codec version (Phase 18). A due date is
+  still ⬜.
 - ⬜ **Export as an outline.** Markdown text built from the connections, next to the planned PNG/SVG export.
 
 ## Phase 13: Dashboard and phone polish
@@ -100,11 +104,12 @@ Small changes with a large effect on how fast the canvas feels. Each one ships w
 - ⬜ **Pin favorites** and show the "continue where you left off" row only when it adds something.
 - ⬜ **Trash with 30-day restore** instead of deleting a workspace at once.
 - ⬜ **Sample workspace** button in the empty dashboard.
-- ⬜ **Phone: single "+" creation button** that expands, replacing the five-button dock.
+- ✅ **Phone: single "+" creation button** that expands, replacing the dock. The breakpoint moved from 640 px to 900 px in
+  Phase 18, when the dock grew to seven buttons and began to touch the getting-started list.
 
 ## Phase 14: Engineering
 
-- ⬜ **Automatic backup to a chosen folder** with the File System Access API (Chromium), falling back to manual export.
+- ✅ **Automatic backup to a chosen folder** with the File System Access API (Chromium), falling back to downloads.
   A synced folder (OneDrive, Drive) then works as a simple multi-device sync without a server.
 - ⬜ **Move export and import to a Web Worker** so a large workspace does not freeze the interface.
 - ⬜ **Installable extras:** `share_target` (share a link or picture from a phone into the app) and `file_handlers`
@@ -140,6 +145,47 @@ Browser flows: `e2e/phase16_navigation.py`, `phase16_share.py`, `phase16_snippet
 - ⬜ **Snapshots.** Named restore points kept in the browser. Needs the image cleanup to treat snapshots as references first.
 - ⬜ Not in this round: freehand pen, collapsing groups, saved viewpoints, workspace-to-workspace links (each needs a saved-data change).
 
+## Phase 17: Fixes, speed, offline, and backup
+
+Browser flows: `e2e/phase17_ux.py` (21 checks) and `e2e/phase17_backup.py` (19 checks).
+
+- ✅ **Safe areas.** Floating bars keep clear of notches and the home indicator through `--safe-*` variables.
+- ✅ **Create dialog.** The Create button stays visible without scrolling, on desktop and phones.
+- ✅ **Dashboard empty state** aligned with the heading; the five templates start a populated workspace in one click.
+- ✅ **No "Created ..." toast** after creating a workspace: opening it is the confirmation.
+- ✅ **Dashboard entrance with Web Animations.** GSAP now loads only with the editor; the first-load script went from
+  176.6 KB to 149.1 KB gzip.
+- ✅ **Three.js backdrop** is skipped on devices reporting two cores or 2 GB or less, and loads when the browser is idle.
+- ✅ **Size budgets** (`npm run size:check`) and **PWA checks** in `npm run deploy:check`.
+- ✅ **Backup reminder** on the dashboard after 7 days without a backup (snooze 3 days), a **backup folder** that is
+  refreshed while the app is open, and a **download fallback** for browsers without folder access.
+- ⬜ **Promote the CSP** from Report-Only to enforced after a Vercel preview shows no violations (needs a live deployment).
+- ⬜ **Arabic interface and RTL** (the rest of Phase 9): dictionary, logical CSS properties, and the Arabic font.
+
+## Phase 18: Cards and tools inspired by Kinopio, Scrintal, and Miro
+
+Built from five reference screenshots. Browser flows: `e2e/phase18_cards.py` (56 checks, all passing in headless
+Chromium). Saved canvases move to `schemaVersion` 2 and export files to package version 2. Version 1 data opens unchanged,
+and an older app version refuses version 2 data and keeps a backup instead of silently dropping the new fields.
+
+- ✅ **Status ring** on every card (none, in progress, done): one click cycles it; shown by shape, not by color alone.
+- ✅ **Card locking.** A locked card cannot be moved, resized, or deleted (also not by align or tree layouts); its text
+  stays editable. Properties panel, command palette, and a lock icon on the card.
+- ✅ **Orange and red** note colors (eight in all).
+- ✅ **Image looks:** card, sticker (the picture alone, with a shadow that follows its shape), and cover (title over the picture).
+- ✅ **Checklist card** (`K`): tick, edit, add, and remove items in place; progress bar; up to 40 items.
+- ✅ **Light Markdown in text cards:** headings, bullet, numbered, and task lists, quotes, bold, italic, code, and
+  `http(s)` links. No raw HTML; plain text keeps its line breaks.
+- ✅ **Shape cards** (`S`): rectangle, ellipse, diamond, with text and a color.
+- ✅ **Links panel** in the properties panel: where a card goes and where it comes from; click to jump.
+- ✅ **Arrange as a tree** (follows the connections) and **arrange in columns by status** (a Kanban view of any
+  selection). One undo step each.
+- ✅ **YouTube video card** (`Y`). Nothing is requested from YouTube until you press play; the player is
+  `youtube-nocookie.com` in a sandboxed frame, and the CSP allows that one host (see [docs/SECURITY.md](docs/SECURITY.md)).
+- ⬜ **Export as PNG/SVG and as an HTML slide deck.** Not started.
+- ⬜ **Tab/Enter mind-map keys** (see Phase 12) and the new card types in the right-click "add" menu.
+- ⬜ **Due dates**, and the status ring is placed on the card's box, so on a diamond it floats just outside the shape.
+
 ## Needs an architecture decision first (not planned)
 
 These need a server, accounts, or sending content off the device, which changes the privacy and security model.
@@ -147,5 +193,8 @@ These need a server, accounts, or sending content off the device, which changes 
 - ⬜ **Cloud sync between devices:** authentication, conflict resolution, server storage, a security review.
 - ⬜ **Link previews** through a serverless function: block private addresses, limit redirects, set timeouts, and make
   it opt-in because today the app never fetches pages.
+- ⬜ **Live collaboration** (shared cursors, a Share button): needs a server, accounts, and a sync protocol.
+- ⬜ **Web page embeds** inside a card (beyond the YouTube player): framing arbitrary sites needs a per-host allow-list
+  and a stricter CSP.
 - ⬜ **AI helpers** (for example summarizing a group): opt-in only, since card content would leave the device.
 

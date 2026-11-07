@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // RouterProvider من الحزمة الرئيسية لا من react-router/dom: في Vitest تُحمَّل نسخة ثانية من السياق فيفشل useRouteError
 import { createMemoryRouter, RouterProvider } from 'react-router'

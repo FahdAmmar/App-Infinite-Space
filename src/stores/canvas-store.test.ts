@@ -366,3 +366,86 @@ describe('reorderLayers', () => {
     expect(nodes()).toBe(before)
   })
 })
+
+describe('card status and lock', () => {
+  it('cycles a card status and records one undo step per change', () => {
+    const a = createStickyNote({ x: 0, y: 0 }, 1)
+    store.getState().addNode(a)
+    store.getState().cycleNodeStatus(a.id)
+    expect(byId(a.id)?.data.status).toBe('doing')
+    store.getState().cycleNodeStatus(a.id)
+    expect(byId(a.id)?.data.status).toBe('done')
+    store.getState().cycleNodeStatus(a.id)
+    expect(byId(a.id)?.data.status).toBeUndefined()
+  })
+
+  it('does nothing (same node references) when the status is already set', () => {
+    const a = createStickyNote({ x: 0, y: 0 }, 1)
+    store.getState().addNode(a)
+    store.getState().setNodesStatus([a.id], 'done')
+    const before = nodes()
+    store.getState().setNodesStatus([a.id], 'done')
+    expect(nodes()).toBe(before)
+  })
+
+  it('ignores groups when setting status', () => {
+    const group = createGroup({ x: 0, y: 0 }, 1)
+    store.getState().addNode(group)
+    store.getState().cycleNodeStatus(group.id)
+    store.getState().setNodesStatus([group.id], 'done')
+    expect(byId(group.id)?.data.status).toBeUndefined()
+  })
+
+  it('a locked card is not removed, moved or resized, but an unlocked one still is', () => {
+    const a = createStickyNote({ x: 0, y: 0 }, 1)
+    const b = createStickyNote({ x: 400, y: 0 }, 1)
+    store.getState().addNodes([a, b])
+    store.getState().setNodesLocked([a.id], true)
+    const width = byId(a.id)?.width
+
+    store.getState().moveNodes([{ id: a.id, position: { x: 999, y: 999 } }, { id: b.id, position: { x: 500, y: 500 } }])
+    expect(byId(a.id)?.position).toEqual(a.position)
+    expect(byId(b.id)?.position).toEqual({ x: 500, y: 500 })
+
+    store.getState().resizeNode(a.id, { width: 300 })
+    expect(byId(a.id)?.width).toBe(width)
+
+    store.getState().removeNodes([a.id, b.id])
+    expect(byId(a.id)).toBeDefined()
+    expect(byId(b.id)).toBeUndefined()
+  })
+
+  it('removeSelection keeps locked cards and removeNodes of only locked cards changes nothing', () => {
+    const a = createStickyNote({ x: 0, y: 0 }, 1)
+    store.getState().addNode(a)
+    store.getState().setNodesLocked([a.id], true)
+    const before = nodes()
+    store.getState().selectAll()
+    store.getState().removeSelection()
+    expect(nodes().map((n) => n.id)).toEqual(before.map((n) => n.id))
+  })
+
+  it('unlocking restores movement and deletion', () => {
+    const a = createStickyNote({ x: 0, y: 0 }, 1)
+    store.getState().addNode(a)
+    store.getState().setNodesLocked([a.id], true)
+    store.getState().setNodesLocked([a.id], false)
+    store.getState().moveNodes([{ id: a.id, position: { x: 50, y: 60 } }])
+    expect(byId(a.id)?.position).toEqual({ x: 50, y: 60 })
+    expect(byId(a.id)?.draggable).toBeUndefined()
+    store.getState().removeNodes([a.id])
+    expect(byId(a.id)).toBeUndefined()
+  })
+
+  it('lock and status changes can be undone and redone', () => {
+    const a = createStickyNote({ x: 0, y: 0 }, 1)
+    store.getState().addNode(a)
+    store.getState().setNodesLocked([a.id], true)
+    expect(store.getState().undo()).toBe(true)
+    expect(byId(a.id)?.data.locked).toBeUndefined()
+    expect(byId(a.id)?.draggable).toBeUndefined()
+    expect(store.getState().redo()).toBe(true)
+    expect(byId(a.id)?.data.locked).toBe(true)
+    expect(byId(a.id)?.draggable).toBe(false)
+  })
+})

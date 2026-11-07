@@ -17,7 +17,8 @@ import type { StoredCanvas } from '@/services/persistence/storage-adapter'
  */
 
 export const PACKAGE_FORMAT = 'infinitespace-workspace'
-export const PACKAGE_VERSION = 1
+/** 2 = بطاقات تحمل status/locked وأنواعاً أحدث. نقرأ الإصدار 1 كما هو، ونكتب 2 فترفضه النسخ الأقدم بدل أن تُسقط الحقول الجديدة بصمت. */
+export const PACKAGE_VERSION = 2
 export const PACKAGE_FILE_SUFFIX = '.infinitespace.json'
 /** الحد نفسه عند التصدير والاستيراد: أي ملف نصدّره نقبل استيراده. */
 export const PACKAGE_MAX_BYTES = 256 * 1024 * 1024

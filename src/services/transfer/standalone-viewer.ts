@@ -85,6 +85,22 @@ export function buildViewerData(input: {
       }
       case 'link':
         return { ...base, title: node.data.title, text: node.data.description, color: null, url: SAFE_LINK.test(node.data.url) ? node.data.url : '', image: null }
+      case 'video':
+        // العارض المستقل بلا شبكة: يُعرض كبطاقة رابط إلى YouTube
+        return { ...base, kind: 'link', title: node.data.title, text: '', color: null, url: SAFE_LINK.test(node.data.url) ? node.data.url : '', image: null }
+      case 'shape':
+        return { ...base, kind: 'text', title: node.data.label, text: '', color: node.data.color, url: '', image: null }
+      case 'checklist':
+        // يُعرض في العارض المستقل كبطاقة نص: ☑ للمنجز و☐ لغيره
+        return {
+          ...base,
+          kind: 'text',
+          title: node.data.title,
+          text: node.data.items.map((item) => `${item.done ? '\u2611' : '\u2610'} ${item.text}`).join('\n'),
+          color: null,
+          url: '',
+          image: null,
+        }
       case 'group':
         return { ...base, title: node.data.label, text: '', color: node.data.color, url: '', image: null }
     }

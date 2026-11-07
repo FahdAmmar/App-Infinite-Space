@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { whenIdle } from '@/lib/idle'
 import { useUiStore } from '@/stores/ui-store'
 import type { BackgroundScene, SceneColors } from './createBackgroundScene'
 import { useEffectsAllowed } from './useEffectsAllowed'
@@ -42,7 +43,9 @@ export function BackgroundEffect({ className }: { className?: string }) {
     let scene: BackgroundScene | null = null
     let observer: MutationObserver | null = null
 
-    void import('./createBackgroundScene')
+    // التحميل عند الخمول: حزمة Three.js ثقيلة (131KB مضغوطة) ولا يجوز أن تنافس أول رسم للعنوان والبطاقات
+    const cancelIdle = whenIdle(() => {
+      void import('./createBackgroundScene')
       .then(({ createBackgroundScene }) => {
         if (disposed) return
         scene = createBackgroundScene(container, readColors(), {
@@ -57,9 +60,11 @@ export function BackgroundEffect({ className }: { className?: string }) {
       .catch(() => {
         if (!disposed) setFailed(true) // WebGL غير متاح أو فشل تحميل الوحدة: نتجاهل المؤثر بصمت
       })
+    })
 
     return () => {
       disposed = true
+      cancelIdle()
       observer?.disconnect()
       scene?.dispose()
       delete container.dataset.effect

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createSnippet, MAX_SNIPPETS } from '@/features/canvas/utils/snippets'
 import { createStickyNote } from '@/features/canvas/utils/node-factory'

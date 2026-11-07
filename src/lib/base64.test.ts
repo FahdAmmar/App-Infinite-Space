@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 import { base64DecodedLength, base64ToBlob, blobToBase64, isBase64 } from './base64'
 

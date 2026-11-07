@@ -15,6 +15,8 @@ export const STICKY_COLORS: Record<StickyColorId, { label: string; bg: string; b
   pink: { label: 'Pink', bg: 'var(--sticky-pink-bg)', border: 'var(--sticky-pink-border)', ink: 'var(--sticky-pink-ink)' },
   purple: { label: 'Purple', bg: 'var(--sticky-purple-bg)', border: 'var(--sticky-purple-border)', ink: 'var(--sticky-purple-ink)' },
   neutral: { label: 'Neutral', bg: 'var(--sticky-neutral-bg)', border: 'var(--sticky-neutral-border)', ink: 'var(--sticky-neutral-ink)' },
+  orange: { label: 'Orange', bg: 'var(--sticky-orange-bg)', border: 'var(--sticky-orange-border)', ink: 'var(--sticky-orange-ink)' },
+  red: { label: 'Red', bg: 'var(--sticky-red-bg)', border: 'var(--sticky-red-border)', ink: 'var(--sticky-red-ink)' },
 }
 
 export const DEFAULT_STICKY_COLOR: StickyColorId = 'yellow'
@@ -27,6 +29,9 @@ export const NODE_SIZES: Record<
   sticky: { width: 232, height: 208, minWidth: 160, minHeight: 140 },
   text: { width: 360, height: 240, minWidth: 240, minHeight: 150 },
   link: { width: 300, height: 176, minWidth: 220, minHeight: 130 },
+  checklist: { width: 280, height: 250, minWidth: 220, minHeight: 130 },
+  shape: { width: 200, height: 140, minWidth: 90, minHeight: 60 },
+  video: { width: 360, height: 260, minWidth: 240, minHeight: 170 },
   group: { width: 520, height: 360, minWidth: 240, minHeight: 180 },
 }
 
@@ -63,6 +68,8 @@ export const DESCRIPTION_MAX_LENGTH = 500
 export const URL_MAX_LENGTH = 2048
 export const GROUP_LABEL_MAX_LENGTH = 60
 export const EDGE_LABEL_MAX_LENGTH = 60
+/** حدود قائمة المهام: عدد العناصر وطول نص العنصر (يُفرضان عند الإدخال وعند القراءة) */
+export const CHECKLIST_LIMITS = { maxItems: 40, itemMaxLength: 160 } as const
 export const MAX_TAGS = 8
 export const TAG_MAX_LENGTH = 24
 

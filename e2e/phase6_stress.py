@@ -18,6 +18,7 @@
 import base64, io, json, math, os, random, statistics, sys, tempfile, time
 from PIL import Image
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+from _common import patch_browser
 
 URL = os.environ.get('BASE_URL', 'http://127.0.0.1:4173/')
 LIMIT = 5_000  # CANVAS_LIMITS.maxNodes
@@ -95,7 +96,7 @@ def stats(deltas):
     return {'frames': len(deltas), 'avg': round(statistics.mean(deltas), 1), 'p95': round(s[int(len(s) * 0.95) - 1], 1), 'max': round(s[-1], 1)}
 
 with sync_playwright() as p:
-    browser = p.chromium.launch(args=['--enable-precise-memory-info'])
+    browser = patch_browser(p.chromium.launch(args=['--enable-precise-memory-info']))
     logs = []
     for n in ([] if ONLY_UPLOADS else SIZES):
         ctx = browser.new_context(viewport={'width': 1440, 'height': 900}, color_scheme='dark'); ctx.add_init_script(FRAMES)

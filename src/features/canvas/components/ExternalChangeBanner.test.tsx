@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { click, renderNode, type Rendered } from '@/test-utils/render'
 import { PersistenceContext, type PersistenceActions } from '../persistence/persistence-context'

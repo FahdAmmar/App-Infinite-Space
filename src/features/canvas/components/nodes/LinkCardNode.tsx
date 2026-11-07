@@ -25,7 +25,7 @@ function LinkCardNodeImpl({ id, data, selected }: NodeProps<LinkCard>) {
   }
 
   return (
-    <NodeFrame id={id} type="link" selected={selected} editing={isEditing}>
+    <NodeFrame id={id} type="link" selected={selected} status={data.status ?? 'none'} locked={data.locked === true} editing={isEditing}>
       <div
         onDoubleClick={startEditing}
         className={cn('card-node flex h-full w-full flex-col overflow-hidden px-4 pt-3.5 pb-3.5 text-left text-ink', selected && 'card-node-selected')}

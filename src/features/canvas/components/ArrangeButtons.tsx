@@ -7,12 +7,14 @@ import {
   AlignCenterHorizontal,
   AlignCenterVertical,
   AlignVerticalDistributeCenter,
+  Columns3,
+  Network,
   type LucideIcon,
 } from 'lucide-react'
 import { IconButton } from '@/components/ui/Button'
 import { selectSelectedCount } from '@/stores/canvas-selectors'
 import { useCanvasStore, useCanvasStoreApi } from '@/stores/canvas-store-context'
-import { alignNodes, distributeNodes, type AlignKind, type DistributeAxis, type Placement } from '../utils/arrange'
+import { alignNodes, distributeNodes, layoutColumnsByStatus, layoutTree, type AlignKind, type DistributeAxis, type Placement } from '../utils/arrange'
 import type { CanvasNode } from '../types/nodes'
 
 const ALIGN_BUTTONS: ReadonlyArray<{ kind: AlignKind; label: string; Icon: LucideIcon }> = [
@@ -39,6 +41,11 @@ export function ArrangeButtons() {
     moveNodes(compute(nodes.filter((node) => node.selected), nodes))
   }
 
+  const arrangeTree = () => {
+    const { nodes, edges, moveNodes } = api.getState()
+    moveNodes(layoutTree(nodes.filter((node) => node.selected), nodes, edges))
+  }
+
   return (
     <>
       <div role="group" aria-label="Align" className="flex items-center gap-0.5">
@@ -60,6 +67,14 @@ export function ArrangeButtons() {
             <Icon className="size-4" aria-hidden="true" />
           </IconButton>
         ))}
+      </div>
+      <div role="group" aria-label="Layout" className="flex items-center gap-0.5">
+        <IconButton label="Arrange as a tree that follows the connections" onClick={arrangeTree} className="size-9">
+          <Network className="size-4" aria-hidden="true" />
+        </IconButton>
+        <IconButton label="Arrange in columns by status (none, in progress, done)" onClick={() => run(layoutColumnsByStatus)} className="size-9">
+          <Columns3 className="size-4" aria-hidden="true" />
+        </IconButton>
       </div>
       <span aria-hidden="true" className="mx-0.5 h-5 w-px bg-line" />
     </>

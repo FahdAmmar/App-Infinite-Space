@@ -11,11 +11,11 @@ Technology choices, version decisions, code layout, and the design decisions beh
 | Build | Vite 8, TypeScript 6.0 (strict, `noUncheckedIndexedAccess`) |
 | Styling | Tailwind CSS 4 with CSS-variable design tokens |
 | State | Zustand 5 |
-| Motion | GSAP 3 (dashboard, editor entry, card and save confirmations) |
+| Motion | Web Animations on the dashboard; GSAP 3 in the editor (entry, card and save confirmations) |
 | Effects | Three.js (optional dashboard background, lazy chunk), CSS effects adapted from Magic UI |
 | Icons | Lucide React |
 | Fonts | Syne, IBM Plex Sans, IBM Plex Mono, self-hosted via Fontsource (no third-party requests) |
-| Tests | Vitest 5 + jsdom |
+| Tests | Vitest 5 (`node` by default, jsdom per file where a DOM is needed) |
 | Lint | ESLint 10, typescript-eslint, eslint-plugin-react-hooks 7 |
 
 Magic UI components are copied into a project rather than installed as a package; the two used here (Magic Card, Border Beam) are rewritten as plain CSS and a small hook, and credited in the file headers (Magic UI is MIT licensed). The React Flow attribution link is kept visible, as its license asks of non-Pro users.
@@ -47,7 +47,7 @@ src/
     canvas/               Editor
       components/         CanvasEditor, tool rail, creation dock, zoom controls,
                           selection toolbar, top bar, shortcuts dialog
-        nodes/            Sticky, text, image, link, and group nodes, NodeFrame, editors, node-types
+        nodes/            Sticky, text, image, link, checklist, shape, video, and group nodes, NodeFrame, editors, node-types
         edges/            ConnectionEdge (gradient, arrows, label), edge-types
         properties/       Node and connection property editors, form controls
       hooks/              useCanvasCommands, useCanvasShortcuts, useImagePaste, useImageUrl
@@ -60,6 +60,8 @@ src/
                           connected-card planner, text-paste planner, command search, tag filter, toolbar placement, presentation order (+ tests)
   stores/                 workspace-store, ui-store, canvas-store, canvas-history (+ context/provider, selectors)
   services/persistence/   StorageAdapter (localStorage metadata + IndexedDB canvases), ImageStorage + IndexedDB with memory fallback (+ tests)
+  pwa/                    Service worker template and build helpers, update prompt, offline message (+ tests)
+  services/backup/        Backup reminder rules, folder backup (File System Access, injected), folder handle store
   services/transfer/      Export file format, import, backup salvage and restore (pure, storage injected)
   services/templates/     Builds the cards, connections and opening view of each template from the canvas card factories (lazy-loaded when a
                           workspace is created from one; the catalog of names and blurbs is in features/workspaces/templates)
@@ -82,7 +84,8 @@ scripts/                  check-markdown.mjs (docs:check: line limit, links, REA
 - **Cleanup never guesses.** Deleting an image file is irreversible, so the cleanup only runs when it can read every workspace and canvas, ignores files younger than 24 hours (another tab may be mid-edit, or undo may need them), and never touches a file any saved canvas references.
 - **One canvas store per open editor.** Opening another workspace starts from a clean state (no leakage), and the store is testable in isolation. Every node change goes through its actions, which is what makes history and saving observable in one place.
 - **Load before editing.** The editor and its store are created only after the saved canvas has been read and validated, so there is no flash of an empty canvas and autosave cannot start before we know what is saved.
-- **Typed node model.** `CanvasNode` is a discriminated union (`sticky | text | image | link | group`) on top of React Flow's node type; the node and edge registries are module-level constants so React Flow does not remount them. One generic `updateNodeData(id, type, patch)` action is typed per node type, so a patch for the wrong type does not compile.
+- **Saved-data versions.** A canvas is written with `schemaVersion` 2 (`CANVAS_SCHEMA_VERSION`) and read from 1 or 2; export files use package version 2 the same way. New fields are optional and omitted at their defaults, and the version number goes up anyway so an older build refuses the file instead of re-saving it without the new fields.
+- **Typed node model.** `CanvasNode` is a discriminated union (`sticky | text | image | link | checklist | shape | video | group`) on top of React Flow's node type; the node and edge registries are module-level constants so React Flow does not remount them. One generic `updateNodeData(id, type, patch)` action is typed per node type, so a patch for the wrong type does not compile.
 - **Rules live in pure functions.** Group membership, connection validity, handle selection, URL and tag normalization, and image validation are plain functions with unit tests; components only call them. All connection paths (dragging, the Connect tool) share one validity check.
 - **Group membership by center.** A card belongs to the smallest group that contains its center. It is evaluated when a drag ends, when a card is created, and when a group is resized. Positions of members are relative to the group (React Flow's `parentId`), and groups are kept first in the node array because React Flow requires parents before children.
 - **Images are blobs, not strings.** Node data holds only an `imageId`; the bytes live in IndexedDB behind an `ImageStorage` interface. A reference-counted object-URL cache keeps images that scroll out of view cheap to restore and revokes the least recently used ones. If IndexedDB is unavailable, images stay in memory and the user is told once.

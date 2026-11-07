@@ -4,6 +4,7 @@ import { Type } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { useCanvasStore, useCanvasStoreApi } from '@/stores/canvas-store-context'
 import type { TextCard } from '../../types/nodes'
+import { MarkdownView } from './MarkdownView'
 import { NodeContentEditor } from './NodeContentEditor'
 import { NodeFrame } from './NodeFrame'
 import { TagChips } from './TagChips'
@@ -22,7 +23,7 @@ function TextCardNodeImpl({ id, data, selected }: NodeProps<TextCard>) {
   }
 
   return (
-    <NodeFrame id={id} type="text" selected={selected} editing={isEditing}>
+    <NodeFrame id={id} type="text" selected={selected} status={data.status ?? 'none'} locked={data.locked === true} editing={isEditing}>
       <div
         onDoubleClick={startEditing}
         className={cn('card-node flex h-full w-full flex-col overflow-hidden px-5 pt-3.5 pb-4 text-left text-ink', selected && 'card-node-selected')}
@@ -55,15 +56,10 @@ function TextCardNodeImpl({ id, data, selected }: NodeProps<TextCard>) {
                 {data.title}
               </p>
             )}
-            <p
-              dir="auto"
-              className={cn(
-                'min-h-0 flex-1 overflow-hidden text-[0.92rem] leading-[1.65] break-words whitespace-pre-wrap text-ink/85',
-                data.title !== '' && 'mt-1.5',
-              )}
-            >
-              {data.content}
-            </p>
+            <MarkdownView
+              source={data.content}
+              className={cn('min-h-0 flex-1 overflow-hidden text-[0.92rem] leading-[1.65] break-words text-ink/85', data.title !== '' && 'mt-1.5')}
+            />
             <TagChips tags={data.tags} className="mt-2 shrink-0" />
           </>
         )}

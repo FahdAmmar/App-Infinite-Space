@@ -72,7 +72,7 @@ with sync_playwright() as p:
     m.wait_for_url('**/w/**'); m.wait_for_selector('.react-flow'); m.wait_for_timeout(700)
     # بطاقات بلمسات حقيقية: نختار أداة اللصقة من الـ dock ثم نلمس اللوحة
     for (x, y, text) in [(195, 200, 'Research'), (195, 430, 'Positioning'), (195, 660, 'Launch plan')]:
-        m.get_by_role('button', name='Sticky note', exact=True).click(); m.wait_for_timeout(150)
+        from _common import open_add_menu; open_add_menu(m); m.get_by_role('button', name='Sticky note', exact=True).click(); m.wait_for_timeout(150)
         m.touchscreen.tap(x, y); m.wait_for_timeout(250)
         m.keyboard.type(text); m.keyboard.press('Escape'); m.wait_for_timeout(250)
     m.keyboard.press('Escape'); m.wait_for_timeout(150)

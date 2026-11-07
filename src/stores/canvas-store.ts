@@ -13,6 +13,10 @@ import type {
   CanvasNode,
   CanvasNodeType,
   CanvasTool,
+  CardStatus,
+  ChecklistData,
+  ShapeData,
+  VideoData,
   GroupData,
   ImageCardData,
   LinkCardData,
@@ -27,6 +31,7 @@ import {
   releaseChildren,
   sortGroupsFirst,
 } from '@/features/canvas/utils/group-utils'
+import { getStatus, isLocked, nextStatus, withLocked, withStatus } from '@/features/canvas/utils/card-flags'
 import { reorderLayers as reorderNodeLayers, type LayerMove } from '@/features/canvas/utils/layers'
 import { duplicateNodes } from '@/features/canvas/utils/node-factory'
 import {
@@ -41,8 +46,11 @@ import {
 export interface NodePatchMap {
   sticky: Partial<Pick<StickyNoteData, 'title' | 'content' | 'color' | 'textColor' | 'tags'>>
   text: Partial<Pick<TextCardData, 'title' | 'content' | 'tags'>>
-  image: Partial<Pick<ImageCardData, 'title' | 'description' | 'tags' | 'imageId' | 'fileName' | 'naturalWidth' | 'naturalHeight'>>
+  image: Partial<Pick<ImageCardData, 'title' | 'description' | 'tags' | 'imageId' | 'fileName' | 'naturalWidth' | 'naturalHeight' | 'appearance'>>
   link: Partial<Pick<LinkCardData, 'url' | 'title' | 'description' | 'tags'>>
+  checklist: Partial<Pick<ChecklistData, 'title' | 'items' | 'tags'>>
+  video: Partial<Pick<VideoData, 'url' | 'title' | 'tags'>>
+  shape: Partial<Pick<ShapeData, 'shape' | 'label' | 'color' | 'tags'>>
   group: Partial<Pick<GroupData, 'label' | 'color' | 'tags'>>
 }
 
@@ -112,7 +120,14 @@ export interface CanvasState {
   updateTextCard: (id: string, patch: NodePatchMap['text']) => void
   /** يغيّر الحجم ضمن حدود النوع. الصور: العرض فقط (الارتفاع يتبع النسبة). */
   resizeNode: (id: string, size: { width?: number; height?: number }) => void
+  /** يحذف البطاقات المعطاة؛ المقفلة تُترك (تُفكّ أقفالها أولاً). */
   removeNodes: (ids: readonly string[]) => void
+  /** يضبط حالة البطاقات (لا شيء/قيد العمل/تم)؛ المجموعات تُتجاهل. خطوة تراجع واحدة. */
+  setNodesStatus: (ids: readonly string[], status: CardStatus) => void
+  /** ينقل حالة بطاقة إلى التالية: لا شيء ← قيد العمل ← تم ← لا شيء */
+  cycleNodeStatus: (id: string) => void
+  /** يقفل البطاقات أو يفكّ قفلها. خطوة تراجع واحدة. */
+  setNodesLocked: (ids: readonly string[], locked: boolean) => void
   removeEdges: (ids: readonly string[]) => void
   /** يحذف كل ما هو محدد: عقداً ووصلات. */
   removeSelection: () => void
@@ -344,7 +359,8 @@ export function createCanvasStore(options: CanvasStoreOptions = {}): CanvasStore
         const target = new Map(placements.map((placement) => [placement.id, placement.position]))
         const moved = state.nodes.map((node) => {
           const position = target.get(node.id)
-          return position ? { ...node, position: { x: position.x, y: position.y } } : node
+          // البطاقة المقفلة لا تتحرك حتى بالمحاذاة والتوزيع
+          return position && !isLocked(node) ? { ...node, position: { x: position.x, y: position.y } } : node
         })
         return { nodes: reconcileMembership(moved, new Set(target.keys())) }
       }),
@@ -366,7 +382,7 @@ export function createCanvasStore(options: CanvasStoreOptions = {}): CanvasStore
     resizeNode: (id, size) =>
       set((state) => ({
         nodes: state.nodes.map((node) => {
-          if (node.id !== id) return node
+          if (node.id !== id || isLocked(node)) return node
           const limits = getResizeLimits(node.type)
           const width = size.width === undefined ? node.width : clamp(Math.round(size.width), limits.minWidth, limits.maxWidth)
           if (node.type === 'image') return { ...node, width }
@@ -378,7 +394,9 @@ export function createCanvasStore(options: CanvasStoreOptions = {}): CanvasStore
 
     removeNodes: (ids) =>
       set((state) => {
-        const doomed = new Set(ids)
+        const protectedIds = new Set(state.nodes.filter(isLocked).map((node) => node.id))
+        const doomed = new Set(ids.filter((id) => !protectedIds.has(id)))
+        if (doomed.size === 0) return state
         const doomedGroups = new Set(
           state.nodes.filter((node) => node.type === 'group' && doomed.has(node.id)).map((node) => node.id),
         )
@@ -391,6 +409,39 @@ export function createCanvasStore(options: CanvasStoreOptions = {}): CanvasStore
           connectSource: state.connectSource && doomed.has(state.connectSource) ? null : state.connectSource,
           previewNodeId: state.previewNodeId && doomed.has(state.previewNodeId) ? null : state.previewNodeId,
         }
+      }),
+
+    setNodesStatus: (ids, status) =>
+      set((state) => {
+        const target = new Set(ids)
+        const now = Date.now()
+        let changed = false
+        const nodes = state.nodes.map((node) => {
+          if (!target.has(node.id)) return node
+          const next = withStatus(node, status, now)
+          if (next !== node) changed = true
+          return next
+        })
+        return changed ? { nodes } : state
+      }),
+
+    cycleNodeStatus: (id) => {
+      const node = get().nodes.find((candidate) => candidate.id === id)
+      if (node && node.type !== 'group') get().setNodesStatus([id], nextStatus(getStatus(node)))
+    },
+
+    setNodesLocked: (ids, locked) =>
+      set((state) => {
+        const target = new Set(ids)
+        const now = Date.now()
+        let changed = false
+        const nodes = state.nodes.map((node) => {
+          if (!target.has(node.id)) return node
+          const next = withLocked(node, locked, now)
+          if (next !== node) changed = true
+          return next
+        })
+        return changed ? { nodes } : state
       }),
 
     removeEdges: (ids) =>

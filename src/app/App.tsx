@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 import { RouterProvider } from 'react-router/dom'
 import { Toaster } from '@/components/ui/Toaster'
 import { useImageGarbageCollection } from '@/features/canvas/persistence/useImageGarbageCollection'
+import { useAutoBackup } from '@/features/workspaces/hooks/useAutoBackup'
+import { watchConnectivity } from '@/pwa/connectivity'
 import { useUiStore } from '@/stores/ui-store'
 import { router } from './router'
 
@@ -29,6 +31,14 @@ export function App() {
     query.addEventListener('change', sync)
     return () => query.removeEventListener('change', sync)
   }, [themeMode])
+
+  useAutoBackup()
+
+  // رسالة «غير متصل» الدائمة: التطبيق يعمل دون اتصال (خدمة العمل) وبياناته محلية، فنطمئن المستخدم بدل أن نتركه يتساءل
+  useEffect(() => {
+    const { pushToast, dismissToast } = useUiStore.getState()
+    return watchConnectivity(pushToast, dismissToast)
+  }, [])
 
   return (
     <>

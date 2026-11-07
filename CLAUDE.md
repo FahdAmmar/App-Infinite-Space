@@ -1,6 +1,6 @@
 # InfiniteSpace
 
-Local-first visual thinking app: a dashboard of named workspaces plus a full-screen infinite-canvas editor (sticky, text, image, link, and group cards joined by connections). Frontend only: React 19, Vite, strict TypeScript, Tailwind CSS 4, Zustand 5, React Flow (`@xyflow/react`), GSAP, and an optional decorative Three.js backdrop. No backend, no network calls from app code, no accounts. Data stays in the browser (localStorage for workspace metadata, IndexedDB for canvases and images).
+Local-first visual thinking app: a dashboard of named workspaces plus a full-screen infinite-canvas editor (sticky, text, image, link, checklist, shape, video, and group cards joined by connections). Frontend only: React 19, Vite, strict TypeScript, Tailwind CSS 4, Zustand 5, React Flow (`@xyflow/react`), GSAP, and an optional decorative Three.js backdrop. No backend, no network calls from app code, no accounts. Data stays in the browser (localStorage for workspace metadata, IndexedDB for canvases and images).
 
 ## Standing rules from the project owner (they override any skill or habit)
 

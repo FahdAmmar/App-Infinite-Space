@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { createRef } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react'

@@ -23,7 +23,7 @@ export function EditorTopBar({ workspace }: { workspace: WorkspaceMeta }) {
   return (
     <header
       inert={presenting}
-      className={cn('pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-3 sm:p-4', presenting && 'invisible')}
+      className={cn('pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-3 pt-[calc(0.75rem+var(--safe-top))] pr-[calc(0.75rem+var(--safe-right))] pl-[calc(0.75rem+var(--safe-left))] sm:p-4 sm:pt-[calc(1rem+var(--safe-top))] sm:pr-[calc(1rem+var(--safe-right))] sm:pl-[calc(1rem+var(--safe-left))]', presenting && 'invisible')}
     >
       <div data-reveal="top" className="pointer-events-auto flex min-w-0 items-center gap-2">
         <Link

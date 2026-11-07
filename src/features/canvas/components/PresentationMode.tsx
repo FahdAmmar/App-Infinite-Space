@@ -93,7 +93,7 @@ export function PresentationMode() {
   const step = (by: SlideStep) => api.getState().setSlideIndex(stepSlide(index, slideCount, by))
 
   return (
-    <Panel position="bottom-center" className="mb-5!">
+    <Panel position="bottom-center" className="mb-[calc(1.25rem+var(--safe-bottom))]!">
       <section aria-label="Presentation controls" className="flex items-center gap-1 rounded-full border border-line bg-raised p-1 shadow-pop">
         <IconButton label="Previous slide (←)" onClick={() => step(-1)} disabled={index === 0} className="size-10">
           <ChevronLeft className="size-5" aria-hidden="true" />

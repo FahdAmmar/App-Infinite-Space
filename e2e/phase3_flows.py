@@ -12,6 +12,7 @@
 """
 import base64, json, os, struct, sys, tempfile, zlib
 from playwright.sync_api import sync_playwright
+from _common import patch_browser
 
 TMP = tempfile.mkdtemp(prefix='infinitespace-e2e-')
 SHOTS = os.path.join(TMP, 'shots'); os.makedirs(SHOTS)
@@ -47,7 +48,7 @@ def check(name, cond, detail=''):
 def b64(path): return base64.b64encode(open(path,'rb').read()).decode()
 
 with sync_playwright() as p:
-    browser = p.chromium.launch()
+    browser = patch_browser(p.chromium.launch())
     ctx = browser.new_context(viewport={'width': 1440, 'height': 900}, color_scheme='dark')
     pg = ctx.new_page()
     logs = []
